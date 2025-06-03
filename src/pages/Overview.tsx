@@ -1,17 +1,20 @@
 
 import React from 'react';
-import { HomeAttendance } from '@/components/HomeAttendance';
+import { Layout } from '@/components/Layout';
+import { OverviewDashboard } from '@/components/OverviewDashboard';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 
-const Index = () => {
+const Overview = () => {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <HomeAttendance />
+        <Layout>
+          <OverviewDashboard />
+        </Layout>
       </AuthProvider>
     </ThemeProvider>
   );
 };
 
-export default Index;
+export default Overview;
