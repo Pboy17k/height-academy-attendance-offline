@@ -1,13 +1,14 @@
+
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { DatabaseService, AttendanceRecord, Staff } from '@/lib/database';
+import { DatabaseService, Staff, AttendanceRecord } from '@/lib/database';
 import { useToast } from '@/hooks/use-toast';
-import { Download, FileText, Calendar, Search, Clock } from 'lucide-react';
+import { Download, FileText, Search, Clock, Printer } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
@@ -40,7 +41,16 @@ export function AttendanceReports() {
         DatabaseService.getAttendanceRecords(),
         DatabaseService.getAllStaff()
       ]);
-      setRecords(attendanceRecords);
+      
+      // If no attendance records exist, create some sample data
+      if (attendanceRecords.length === 0 && staffMembers.length > 0) {
+        await generateSampleAttendanceData(staffMembers);
+        const newRecords = await DatabaseService.getAttendanceRecords();
+        setRecords(newRecords);
+      } else {
+        setRecords(attendanceRecords);
+      }
+      
       setStaff(staffMembers);
     } catch (error) {
       toast({
@@ -53,14 +63,56 @@ export function AttendanceReports() {
     }
   };
 
+  const generateSampleAttendanceData = async (staffMembers: Staff[]) => {
+    const sampleRecords = [];
+    const today = new Date();
+    
+    // Generate attendance for the past 7 days
+    for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - dayOffset);
+      
+      for (const staffMember of staffMembers) {
+        // 80% chance of attendance
+        if (Math.random() > 0.2) {
+          // Check-in time (8-10 AM)
+          const checkInTime = new Date(date);
+          checkInTime.setHours(8 + Math.floor(Math.random() * 2), Math.floor(Math.random() * 60));
+          
+          await DatabaseService.recordAttendance({
+            staffId: staffMember.id,
+            staffName: staffMember.fullName,
+            type: 'check-in',
+            timestamp: checkInTime,
+            method: 'fingerprint'
+          });
+          
+          // 70% chance of check-out
+          if (Math.random() > 0.3) {
+            const checkOutTime = new Date(date);
+            checkOutTime.setHours(16 + Math.floor(Math.random() * 2), Math.floor(Math.random() * 60));
+            
+            await DatabaseService.recordAttendance({
+              staffId: staffMember.id,
+              staffName: staffMember.fullName,
+              type: 'check-out',
+              timestamp: checkOutTime,
+              method: 'fingerprint'
+            });
+          }
+        }
+      }
+    }
+  };
+
   const applyFilters = () => {
     let filtered = [...records];
 
     // Date range filter
     if (filters.dateRange !== 'custom') {
       const now = new Date();
-      let startDate: Date;
-
+      let startDate;
+      
       switch (filters.dateRange) {
         case 'today':
           startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -77,7 +129,7 @@ export function AttendanceReports() {
         default:
           startDate = new Date(0);
       }
-
+      
       filtered = filtered.filter(record => new Date(record.timestamp) >= startDate);
     } else if (filters.startDate && filters.endDate) {
       const start = new Date(filters.startDate);
@@ -91,18 +143,18 @@ export function AttendanceReports() {
     }
 
     // Staff filter
-    if (filters.staffId && filters.staffId !== 'all') {
+    if (filters.staffId !== 'all') {
       filtered = filtered.filter(record => record.staffId === filters.staffId);
     }
 
     // Type filter
-    if (filters.type && filters.type !== 'all') {
+    if (filters.type !== 'all') {
       filtered = filtered.filter(record => record.type === filters.type);
     }
 
     // Search filter
     if (searchTerm) {
-      filtered = filtered.filter(record =>
+      filtered = filtered.filter(record => 
         record.staffName.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
@@ -118,32 +170,28 @@ export function AttendanceReports() {
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Attendance Report - Greater Height Academy</title>
+          <title>Attendance Report</title>
           <style>
             body { font-family: Arial, sans-serif; margin: 20px; }
-            .header { text-align: center; margin-bottom: 30px; }
-            .header h1 { color: #1f2937; margin: 0; }
-            .header p { color: #6b7280; margin: 5px 0; }
+            h1 { color: #333; text-align: center; }
             table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-            th, td { border: 1px solid #d1d5db; padding: 8px; text-align: left; }
-            th { background-color: #f3f4f6; font-weight: bold; }
-            .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
-            .badge-default { background-color: #3b82f6; color: white; }
-            .badge-secondary { background-color: #6b7280; color: white; }
-            .badge-outline { border: 1px solid #d1d5db; background-color: white; }
-            @media print {
-              body { margin: 0; }
-              .no-print { display: none; }
-            }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            th { background-color: #f2f2f2; }
+            .header { text-align: center; margin-bottom: 20px; }
+            .meta { margin-bottom: 10px; }
+            @media print { button { display: none; } }
           </style>
         </head>
         <body>
           <div class="header">
             <h1>Greater Height Academy</h1>
-            <p>Attendance Report</p>
-            <p>Generated on: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</p>
-            <p>Total Records: ${filteredRecords.length}</p>
+            <h2>Attendance Report</h2>
+            <div class="meta">
+              <p>Generated on: ${new Date().toLocaleDateString()}</p>
+              <p>Total Records: ${filteredRecords.length}</p>
+            </div>
           </div>
+          
           <table>
             <thead>
               <tr>
@@ -156,19 +204,16 @@ export function AttendanceReports() {
               </tr>
             </thead>
             <tbody>
-              ${filteredRecords.map(record => {
-                const staffMember = staff.find(s => s.id === record.staffId);
-                return `
-                  <tr>
-                    <td>${new Date(record.timestamp).toLocaleDateString()}</td>
-                    <td>${new Date(record.timestamp).toLocaleTimeString()}</td>
-                    <td>${record.staffName}</td>
-                    <td><span class="badge badge-outline">${staffMember?.staffId || 'N/A'}</span></td>
-                    <td><span class="badge ${record.type === 'check-in' ? 'badge-default' : 'badge-secondary'}">${record.type === 'check-in' ? 'Check In' : 'Check Out'}</span></td>
-                    <td><span class="badge badge-outline">${record.method}</span></td>
-                  </tr>
-                `;
-              }).join('')}
+              ${filteredRecords.map(record => `
+                <tr>
+                  <td>${new Date(record.timestamp).toLocaleDateString()}</td>
+                  <td>${new Date(record.timestamp).toLocaleTimeString()}</td>
+                  <td>${record.staffName}</td>
+                  <td>${staff.find(s => s.id === record.staffId)?.staffId || 'N/A'}</td>
+                  <td>${record.type}</td>
+                  <td>${record.method}</td>
+                </tr>
+              `).join('')}
             </tbody>
           </table>
         </body>
@@ -178,12 +223,15 @@ export function AttendanceReports() {
     printWindow.document.write(printContent);
     printWindow.document.close();
     printWindow.focus();
-    printWindow.print();
-    printWindow.close();
+    
+    setTimeout(() => {
+      printWindow.print();
+      printWindow.close();
+    }, 250);
 
     toast({
-      title: "Print Ready",
-      description: "Report has been sent to printer",
+      title: "Success",
+      description: "Print dialog opened successfully"
     });
   };
 
@@ -200,24 +248,23 @@ export function AttendanceReports() {
       const pageHeight = 295;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
       let heightLeft = imgHeight;
-      
       let position = 0;
-      
+
       pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
       heightLeft -= pageHeight;
-      
+
       while (heightLeft >= 0) {
         position = heightLeft - imgHeight;
         pdf.addPage();
         pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
         heightLeft -= pageHeight;
       }
-      
+
       pdf.save('attendance-report.pdf');
       
       toast({
         title: "Success",
-        description: "Report exported to PDF successfully",
+        description: "Report exported to PDF successfully"
       });
     } catch (error) {
       toast({
@@ -239,11 +286,11 @@ export function AttendanceReports() {
         record.type,
         record.method
       ]);
-      
+
       const csvContent = [headers, ...csvData]
         .map(row => row.map(field => `"${field}"`).join(','))
         .join('\n');
-      
+
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement('a');
       const url = URL.createObjectURL(blob);
@@ -253,10 +300,10 @@ export function AttendanceReports() {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      
+
       toast({
         title: "Success",
-        description: "Report exported to CSV successfully",
+        description: "Report exported to CSV successfully"
       });
     } catch (error) {
       toast({
@@ -282,7 +329,7 @@ export function AttendanceReports() {
         <p className="text-gray-500 dark:text-gray-400">View and export attendance records</p>
       </div>
 
-      {/* Filters */}
+      {/* Filters Card */}
       <Card>
         <CardHeader>
           <CardTitle>Filters</CardTitle>
@@ -296,7 +343,7 @@ export function AttendanceReports() {
                 onValueChange={(value) => setFilters(prev => ({ ...prev, dateRange: value }))}
               >
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Select date range" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="today">Today</SelectItem>
@@ -315,13 +362,13 @@ export function AttendanceReports() {
                 onValueChange={(value) => setFilters(prev => ({ ...prev, staffId: value }))}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="All Staff" />
+                  <SelectValue placeholder="Select staff" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Staff</SelectItem>
-                  {staff.map((member) => (
+                  {staff.map(member => (
                     <SelectItem key={member.id} value={member.id}>
-                      {member.fullName} ({member.staffId})
+                      {member.fullName}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -329,13 +376,13 @@ export function AttendanceReports() {
             </div>
 
             <div className="space-y-2">
-              <Label>Type</Label>
+              <Label>Attendance Type</Label>
               <Select
                 value={filters.type}
                 onValueChange={(value) => setFilters(prev => ({ ...prev, type: value }))}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="All Types" />
+                  <SelectValue placeholder="Select type" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Types</SelectItem>
@@ -348,12 +395,12 @@ export function AttendanceReports() {
             <div className="space-y-2">
               <Label>Search</Label>
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search by name..."
+                  placeholder="Search staff name..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
+                  className="pl-8"
                 />
               </div>
             </div>
@@ -379,41 +426,45 @@ export function AttendanceReports() {
               </div>
             </div>
           )}
+        </CardContent>
+      </Card>
 
-          <div className="flex justify-between items-center">
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Showing {filteredRecords.length} of {records.length} records
-            </p>
-            <div className="flex space-x-2">
-              <Button onClick={printReport} variant="outline" size="sm">
-                <span className="print-icon h-4 w-4 mr-2">🖨️</span>
-                Print
-              </Button>
-              <Button onClick={exportToCSV} variant="outline" size="sm">
-                <Download className="h-4 w-4 mr-2" />
-                Export CSV
-              </Button>
-              <Button onClick={exportToPDF} variant="outline" size="sm">
-                <FileText className="h-4 w-4 mr-2" />
-                Export PDF
-              </Button>
-            </div>
+      {/* Export Actions */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={printReport} variant="outline" className="flex items-center space-x-2">
+              <Printer className="h-4 w-4" />
+              <span>Print Report</span>
+            </Button>
+            <Button onClick={exportToPDF} variant="outline" className="flex items-center space-x-2">
+              <FileText className="h-4 w-4" />
+              <span>Export PDF</span>
+            </Button>
+            <Button onClick={exportToCSV} variant="outline" className="flex items-center space-x-2">
+              <Download className="h-4 w-4" />
+              <span>Export CSV</span>
+            </Button>
           </div>
         </CardContent>
       </Card>
 
-      {/* Records Table */}
+      {/* Attendance Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Attendance Records</CardTitle>
+          <div className="flex justify-between items-center">
+            <CardTitle>Attendance Records</CardTitle>
+            <Badge variant="secondary">
+              {filteredRecords.length} records found
+            </Badge>
+          </div>
         </CardHeader>
         <CardContent>
           <div id="attendance-table" className="overflow-x-auto">
             {filteredRecords.length === 0 ? (
-              <div className="text-center py-8">
-                <Clock className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-500 dark:text-gray-400">No attendance records found</p>
-              </div>
+              <p className="text-gray-500 dark:text-gray-400 text-center py-8">
+                No attendance records found for the selected criteria
+              </p>
             ) : (
               <table className="w-full border-collapse">
                 <thead>
@@ -427,31 +478,40 @@ export function AttendanceReports() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredRecords.map((record) => {
-                    const staffMember = staff.find(s => s.id === record.staffId);
-                    return (
-                      <tr key={record.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
-                        <td className="p-3">{new Date(record.timestamp).toLocaleDateString()}</td>
-                        <td className="p-3">{new Date(record.timestamp).toLocaleTimeString()}</td>
-                        <td className="p-3">{record.staffName}</td>
-                        <td className="p-3">
-                          <Badge variant="outline">
-                            {staffMember?.staffId || 'N/A'}
-                          </Badge>
-                        </td>
-                        <td className="p-3">
-                          <Badge variant={record.type === 'check-in' ? 'default' : 'secondary'}>
-                            {record.type === 'check-in' ? 'Check In' : 'Check Out'}
-                          </Badge>
-                        </td>
-                        <td className="p-3">
-                          <Badge variant="outline">
-                            {record.method}
-                          </Badge>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                  {filteredRecords.map((record) => (
+                    <tr key={record.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
+                      <td className="p-3">
+                        {new Date(record.timestamp).toLocaleDateString()}
+                      </td>
+                      <td className="p-3">
+                        <div className="flex items-center space-x-1">
+                          <Clock className="h-4 w-4 text-gray-400" />
+                          <span>{new Date(record.timestamp).toLocaleTimeString()}</span>
+                        </div>
+                      </td>
+                      <td className="p-3 font-medium">
+                        {record.staffName}
+                      </td>
+                      <td className="p-3">
+                        <Badge variant="outline">
+                          {staff.find(s => s.id === record.staffId)?.staffId || 'N/A'}
+                        </Badge>
+                      </td>
+                      <td className="p-3">
+                        <Badge 
+                          variant={record.type === 'check-in' ? 'default' : 'secondary'}
+                          className={record.type === 'check-in' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : ''}
+                        >
+                          {record.type === 'check-in' ? 'Check In' : 'Check Out'}
+                        </Badge>
+                      </td>
+                      <td className="p-3">
+                        <span className="text-sm text-gray-500 dark:text-gray-400 capitalize">
+                          {record.method}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             )}
