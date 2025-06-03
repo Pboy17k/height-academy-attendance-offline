@@ -1,20 +1,20 @@
 
 import React from 'react';
 import { Layout } from '@/components/Layout';
-import { HomeAttendance } from '@/components/HomeAttendance';
+import { StaffList } from '@/components/StaffList';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 
-const Index = () => {
+const StaffManagement = () => {
   return (
     <ThemeProvider>
       <AuthProvider>
         <Layout>
-          <HomeAttendance />
+          <StaffList />
         </Layout>
       </AuthProvider>
     </ThemeProvider>
   );
 };
 
-export default Index;
+export default StaffManagement;

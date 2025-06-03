@@ -1,20 +1,20 @@
 
 import React from 'react';
 import { Layout } from '@/components/Layout';
-import { HomeAttendance } from '@/components/HomeAttendance';
+import { AttendanceReports } from '@/components/AttendanceReports';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 
-const Index = () => {
+const Reports = () => {
   return (
     <ThemeProvider>
       <AuthProvider>
         <Layout>
-          <HomeAttendance />
+          <AttendanceReports />
         </Layout>
       </AuthProvider>
     </ThemeProvider>
   );
 };
 
-export default Index;
+export default Reports;
