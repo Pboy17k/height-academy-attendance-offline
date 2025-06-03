@@ -1,20 +1,20 @@
 
 import React from 'react';
 import { Layout } from '@/components/Layout';
-import { Dashboard } from '@/components/Dashboard';
+import { AttendanceStation } from '@/components/AttendanceStation';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 
-const Index = () => {
+const Attendance = () => {
   return (
     <ThemeProvider>
       <AuthProvider>
         <Layout>
-          <Dashboard />
+          <AttendanceStation />
         </Layout>
       </AuthProvider>
     </ThemeProvider>
   );
 };
 
-export default Index;
+export default Attendance;
