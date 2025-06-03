@@ -19,8 +19,8 @@ export function AttendanceReports() {
   const [isLoading, setIsLoading] = useState(true);
   const [filters, setFilters] = useState({
     dateRange: 'today',
-    staffId: '',
-    type: '',
+    staffId: 'all',
+    type: 'all',
     startDate: '',
     endDate: ''
   });
@@ -92,12 +92,12 @@ export function AttendanceReports() {
     }
 
     // Staff filter
-    if (filters.staffId) {
+    if (filters.staffId && filters.staffId !== 'all') {
       filtered = filtered.filter(record => record.staffId === filters.staffId);
     }
 
     // Type filter
-    if (filters.type) {
+    if (filters.type && filters.type !== 'all') {
       filtered = filtered.filter(record => record.type === filters.type);
     }
 
@@ -242,7 +242,7 @@ export function AttendanceReports() {
                   <SelectValue placeholder="All Staff" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Staff</SelectItem>
+                  <SelectItem value="all">All Staff</SelectItem>
                   {staff.map((member) => (
                     <SelectItem key={member.id} value={member.id}>
                       {member.fullName} ({member.staffId})
@@ -262,7 +262,7 @@ export function AttendanceReports() {
                   <SelectValue placeholder="All Types" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Types</SelectItem>
+                  <SelectItem value="all">All Types</SelectItem>
                   <SelectItem value="check-in">Check In</SelectItem>
                   <SelectItem value="check-out">Check Out</SelectItem>
                 </SelectContent>
