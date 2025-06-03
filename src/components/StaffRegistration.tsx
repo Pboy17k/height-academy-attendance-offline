@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -181,7 +180,8 @@ export function StaffRegistration() {
       await DatabaseService.createStaff({
         ...formData,
         photo,
-        fingerprintId: crypto.randomUUID() // Simulate fingerprint ID
+        fingerprintId: crypto.randomUUID(), // Simulate fingerprint ID
+        isActive: true // Add the missing isActive property
       });
       
       toast({
