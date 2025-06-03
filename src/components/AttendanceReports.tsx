@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -109,6 +108,83 @@ export function AttendanceReports() {
     }
 
     setFilteredRecords(filtered);
+  };
+
+  const printReport = () => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const printContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Attendance Report - Greater Height Academy</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 20px; }
+            .header { text-align: center; margin-bottom: 30px; }
+            .header h1 { color: #1f2937; margin: 0; }
+            .header p { color: #6b7280; margin: 5px 0; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th, td { border: 1px solid #d1d5db; padding: 8px; text-align: left; }
+            th { background-color: #f3f4f6; font-weight: bold; }
+            .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
+            .badge-default { background-color: #3b82f6; color: white; }
+            .badge-secondary { background-color: #6b7280; color: white; }
+            .badge-outline { border: 1px solid #d1d5db; background-color: white; }
+            @media print {
+              body { margin: 0; }
+              .no-print { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>Greater Height Academy</h1>
+            <p>Attendance Report</p>
+            <p>Generated on: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</p>
+            <p>Total Records: ${filteredRecords.length}</p>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Time</th>
+                <th>Staff Name</th>
+                <th>Staff ID</th>
+                <th>Type</th>
+                <th>Method</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${filteredRecords.map(record => {
+                const staffMember = staff.find(s => s.id === record.staffId);
+                return `
+                  <tr>
+                    <td>${new Date(record.timestamp).toLocaleDateString()}</td>
+                    <td>${new Date(record.timestamp).toLocaleTimeString()}</td>
+                    <td>${record.staffName}</td>
+                    <td><span class="badge badge-outline">${staffMember?.staffId || 'N/A'}</span></td>
+                    <td><span class="badge ${record.type === 'check-in' ? 'badge-default' : 'badge-secondary'}">${record.type === 'check-in' ? 'Check In' : 'Check Out'}</span></td>
+                    <td><span class="badge badge-outline">${record.method}</span></td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(printContent);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+    printWindow.close();
+
+    toast({
+      title: "Print Ready",
+      description: "Report has been sent to printer",
+    });
   };
 
   const exportToPDF = async () => {
@@ -309,6 +385,10 @@ export function AttendanceReports() {
               Showing {filteredRecords.length} of {records.length} records
             </p>
             <div className="flex space-x-2">
+              <Button onClick={printReport} variant="outline" size="sm">
+                <span className="print-icon h-4 w-4 mr-2">🖨️</span>
+                Print
+              </Button>
               <Button onClick={exportToCSV} variant="outline" size="sm">
                 <Download className="h-4 w-4 mr-2" />
                 Export CSV
