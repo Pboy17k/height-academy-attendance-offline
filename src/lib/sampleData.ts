@@ -13,7 +13,8 @@ export async function generateSampleStaff() {
       staffId: 'STF001',
       department: 'Mathematics',
       role: 'Senior Teacher',
-      photo: '', // You can add base64 image data here
+      photo: '',
+      isActive: true,
     },
     {
       fullName: 'Sarah Johnson',
@@ -23,6 +24,7 @@ export async function generateSampleStaff() {
       department: 'English',
       role: 'Head of Department',
       photo: '',
+      isActive: true,
     },
     {
       fullName: 'Michael Brown',
@@ -32,6 +34,7 @@ export async function generateSampleStaff() {
       department: 'Science',
       role: 'Laboratory Technician',
       photo: '',
+      isActive: true,
     },
     {
       fullName: 'Emily Davis',
@@ -41,6 +44,7 @@ export async function generateSampleStaff() {
       department: 'History',
       role: 'Teacher',
       photo: '',
+      isActive: true,
     },
     {
       fullName: 'David Wilson',
@@ -50,6 +54,7 @@ export async function generateSampleStaff() {
       department: 'Physical Education',
       role: 'Sports Coordinator',
       photo: '',
+      isActive: true,
     },
     {
       fullName: 'Lisa Garcia',
@@ -59,6 +64,7 @@ export async function generateSampleStaff() {
       department: 'Art',
       role: 'Art Teacher',
       photo: '',
+      isActive: true,
     },
     {
       fullName: 'Robert Martinez',
@@ -68,6 +74,7 @@ export async function generateSampleStaff() {
       department: 'Music',
       role: 'Music Director',
       photo: '',
+      isActive: true,
     },
     {
       fullName: 'Jennifer Taylor',
@@ -77,6 +84,7 @@ export async function generateSampleStaff() {
       department: 'Administration',
       role: 'Principal',
       photo: '',
+      isActive: true,
     }
   ];
 
