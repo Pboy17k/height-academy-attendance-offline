@@ -1,14 +1,19 @@
 
-import { DatabaseService } from './database';
+import { StaffDB } from './db';
 
 export async function generateSampleStaff() {
-  const existingStaff = await DatabaseService.getAllStaff();
-  if (existingStaff.length > 0) return;
+  const existingStaff = await StaffDB.getAll();
+  if (existingStaff.length > 0) {
+    console.log('Sample staff already exists, skipping generation');
+    return;
+  }
+
+  console.log('Generating sample staff data...');
 
   const sampleStaff = [
     {
-      fullName: 'John Smith',
-      email: 'john.smith@greaterheight.edu',
+      fullName: 'Ahmed Al-Rashid',
+      email: 'ahmed.rashid@alasracademy.edu',
       phone: '+1-555-0101',
       staffId: 'STF001',
       department: 'Mathematics',
@@ -17,8 +22,8 @@ export async function generateSampleStaff() {
       isActive: true,
     },
     {
-      fullName: 'Sarah Johnson',
-      email: 'sarah.johnson@greaterheight.edu',
+      fullName: 'Fatima Al-Zahra',
+      email: 'fatima.zahra@alasracademy.edu',
       phone: '+1-555-0102',
       staffId: 'STF002',
       department: 'English',
@@ -27,8 +32,8 @@ export async function generateSampleStaff() {
       isActive: true,
     },
     {
-      fullName: 'Michael Brown',
-      email: 'michael.brown@greaterheight.edu',
+      fullName: 'Omar Hassan',
+      email: 'omar.hassan@alasracademy.edu',
       phone: '+1-555-0103',
       staffId: 'STF003',
       department: 'Science',
@@ -37,8 +42,8 @@ export async function generateSampleStaff() {
       isActive: true,
     },
     {
-      fullName: 'Emily Davis',
-      email: 'emily.davis@greaterheight.edu',
+      fullName: 'Aisha Ibrahim',
+      email: 'aisha.ibrahim@alasracademy.edu',
       phone: '+1-555-0104',
       staffId: 'STF004',
       department: 'History',
@@ -47,8 +52,8 @@ export async function generateSampleStaff() {
       isActive: true,
     },
     {
-      fullName: 'David Wilson',
-      email: 'david.wilson@greaterheight.edu',
+      fullName: 'Yusuf Al-Mahmoud',
+      email: 'yusuf.mahmoud@alasracademy.edu',
       phone: '+1-555-0105',
       staffId: 'STF005',
       department: 'Physical Education',
@@ -57,8 +62,8 @@ export async function generateSampleStaff() {
       isActive: true,
     },
     {
-      fullName: 'Lisa Garcia',
-      email: 'lisa.garcia@greaterheight.edu',
+      fullName: 'Zainab Al-Kindi',
+      email: 'zainab.kindi@alasracademy.edu',
       phone: '+1-555-0106',
       staffId: 'STF006',
       department: 'Art',
@@ -67,8 +72,8 @@ export async function generateSampleStaff() {
       isActive: true,
     },
     {
-      fullName: 'Robert Martinez',
-      email: 'robert.martinez@greaterheight.edu',
+      fullName: 'Ibrahim Al-Farisi',
+      email: 'ibrahim.farisi@alasracademy.edu',
       phone: '+1-555-0107',
       staffId: 'STF007',
       department: 'Music',
@@ -77,8 +82,8 @@ export async function generateSampleStaff() {
       isActive: true,
     },
     {
-      fullName: 'Jennifer Taylor',
-      email: 'jennifer.taylor@greaterheight.edu',
+      fullName: 'Maryam Al-Andalusi',
+      email: 'maryam.andalusi@alasracademy.edu',
       phone: '+1-555-0108',
       staffId: 'STF008',
       department: 'Administration',
@@ -88,7 +93,12 @@ export async function generateSampleStaff() {
     }
   ];
 
-  for (const staff of sampleStaff) {
-    await DatabaseService.createStaff(staff);
+  try {
+    for (const staff of sampleStaff) {
+      await StaffDB.create(staff);
+    }
+    console.log('Sample staff data generated successfully');
+  } catch (error) {
+    console.error('Failed to generate sample staff:', error);
   }
 }

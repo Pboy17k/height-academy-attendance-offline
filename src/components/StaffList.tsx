@@ -1,37 +1,21 @@
 
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import React, { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { DatabaseService, Staff } from '@/lib/database';
-import { useToast } from '@/hooks/use-toast';
-import { Search, User, Phone, Mail, Trash2, Edit } from 'lucide-react';
+import { useStaff } from '@/hooks/useStaff';
+import { Search, User, Phone, Mail, Trash2 } from 'lucide-react';
 
 export function StaffList() {
-  const [staff, setStaff] = useState<Staff[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
-  const { toast } = useToast();
-
-  useEffect(() => {
-    loadStaff();
-  }, []);
-
-  const loadStaff = async () => {
-    try {
-      const allStaff = await DatabaseService.getAllStaff();
-      setStaff(allStaff);
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to load staff members",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const { 
+    staff, 
+    isLoading, 
+    error, 
+    toggleStaffStatus, 
+    deleteStaff 
+  } = useStaff();
 
   const filteredStaff = staff.filter(member =>
     member.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -40,38 +24,12 @@ export function StaffList() {
   );
 
   const handleToggleStatus = async (id: string, currentStatus: boolean) => {
-    try {
-      await DatabaseService.updateStaff(id, { isActive: !currentStatus });
-      await loadStaff();
-      toast({
-        title: "Status updated",
-        description: `Staff member ${!currentStatus ? 'activated' : 'deactivated'} successfully`,
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to update staff status",
-        variant: "destructive",
-      });
-    }
+    await toggleStaffStatus(id);
   };
 
   const handleDelete = async (id: string, name: string) => {
     if (window.confirm(`Are you sure you want to delete ${name}?`)) {
-      try {
-        await DatabaseService.deleteStaff(id);
-        await loadStaff();
-        toast({
-          title: "Staff deleted",
-          description: `${name} has been removed from the system`,
-        });
-      } catch (error) {
-        toast({
-          title: "Error",
-          description: "Failed to delete staff member",
-          variant: "destructive",
-        });
-      }
+      await deleteStaff(id);
     }
   };
 
@@ -79,6 +37,19 @@ export function StaffList() {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <p className="text-red-600 dark:text-red-400 mb-4">{error}</p>
+          <Button onClick={() => window.location.reload()}>
+            Refresh Page
+          </Button>
+        </div>
       </div>
     );
   }

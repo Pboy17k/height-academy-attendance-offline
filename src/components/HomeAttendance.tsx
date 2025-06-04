@@ -1,15 +1,16 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { DigitalClock } from '@/components/DigitalClock';
 import { CompactLogin } from '@/components/CompactLogin';
-import { DatabaseService, Staff, AttendanceRecord } from '@/lib/database';
-import { useToast } from '@/hooks/use-toast';
+import { useStaff } from '@/hooks/useStaff';
+import { useAttendance } from '@/hooks/useAttendance';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Sun, Moon, Fingerprint } from 'lucide-react';
+import { Staff, AttendanceRecord } from '@/lib/db';
 
 export function HomeAttendance() {
   const { admin } = useAuth();
@@ -17,35 +18,27 @@ export function HomeAttendance() {
   const [currentStaff, setCurrentStaff] = useState<Staff | null>(null);
   const [lastAttendance, setLastAttendance] = useState<AttendanceRecord | null>(null);
   const [isScanning, setIsScanning] = useState(false);
-  const [recentActivity, setRecentActivity] = useState<AttendanceRecord[]>([]);
-  const { toast } = useToast();
-
-  useEffect(() => {
-    loadRecentActivity();
-  }, []);
-
-  const loadRecentActivity = async () => {
-    try {
-      const records = await DatabaseService.getTodayAttendance();
-      setRecentActivity(records.slice(0, 5));
-    } catch (error) {
-      console.error('Failed to load recent activity:', error);
-    }
-  };
+  
+  const { staff } = useStaff();
+  const { 
+    todayAttendance, 
+    recordAttendance, 
+    getLatestAttendanceForStaff, 
+    getNextAttendanceType 
+  } = useAttendance();
 
   const simulateFingerprintScan = async () => {
     setIsScanning(true);
     
     setTimeout(async () => {
       try {
-        const allStaff = await DatabaseService.getAllStaff();
-        if (allStaff.length > 0) {
-          const randomStaff = allStaff[Math.floor(Math.random() * allStaff.length)];
-          const lastRecord = await DatabaseService.getStaffLatestAttendance(randomStaff.id);
+        if (staff.length > 0) {
+          const randomStaff = staff[Math.floor(Math.random() * staff.length)];
+          const lastRecord = await getLatestAttendanceForStaff(randomStaff.id);
           
           const nextType = getNextAttendanceType(lastRecord);
           
-          const newRecord = await DatabaseService.recordAttendance({
+          const newRecord = await recordAttendance({
             staffId: randomStaff.id,
             staffName: randomStaff.fullName,
             type: nextType,
@@ -53,48 +46,25 @@ export function HomeAttendance() {
             method: 'fingerprint'
           });
           
-          setCurrentStaff(randomStaff);
-          setLastAttendance(newRecord);
-          loadRecentActivity();
-          
-          toast({
-            title: "Success!",
-            description: `${randomStaff.fullName} ${nextType === 'check-in' ? 'checked in' : 'checked out'} successfully`,
-          });
-          
-          setTimeout(() => {
-            setCurrentStaff(null);
-            setLastAttendance(null);
-          }, 5000);
+          if (newRecord) {
+            setCurrentStaff(randomStaff);
+            setLastAttendance(newRecord);
+            
+            setTimeout(() => {
+              setCurrentStaff(null);
+              setLastAttendance(null);
+            }, 5000);
+          }
           
         } else {
-          toast({
-            title: "No Staff Found",
-            description: "Please register staff members first",
-            variant: "destructive",
-          });
+          console.warn('No staff found for fingerprint scan');
         }
       } catch (error) {
-        toast({
-          title: "Scan Failed",
-          description: "Fingerprint not recognized",
-          variant: "destructive",
-        });
+        console.error('Fingerprint scan failed:', error);
       } finally {
         setIsScanning(false);
       }
     }, 2000);
-  };
-
-  const getNextAttendanceType = (lastRecord: AttendanceRecord | null): 'check-in' | 'check-out' => {
-    if (!lastRecord) return 'check-in';
-    
-    const today = new Date();
-    const lastDate = new Date(lastRecord.timestamp);
-    const isToday = today.toDateString() === lastDate.toDateString();
-    
-    if (!isToday) return 'check-in';
-    return lastRecord.type === 'check-in' ? 'check-out' : 'check-in';
   };
 
   // Public attendance interface (no login required)
@@ -210,14 +180,14 @@ export function HomeAttendance() {
             </CardContent>
           </Card>
 
-          {recentActivity.length > 0 && (
+          {todayAttendance.length > 0 && (
             <Card className="w-full max-w-2xl bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm">
               <CardContent className="p-6">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                   Today's Activity
                 </h3>
                 <div className="space-y-2">
-                  {recentActivity.map((record) => (
+                  {todayAttendance.slice(0, 5).map((record) => (
                     <div key={record.id} className="flex justify-between items-center p-2 rounded bg-gray-50 dark:bg-gray-700">
                       <span className="text-sm text-gray-700 dark:text-gray-300">
                         {record.staffName}

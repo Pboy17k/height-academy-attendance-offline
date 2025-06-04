@@ -1,11 +1,10 @@
 import React, { useState, useRef } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { DatabaseService } from '@/lib/database';
-import { useToast } from '@/hooks/use-toast';
+import { useStaff } from '@/hooks/useStaff';
 import { Camera, Fingerprint, User, Save } from 'lucide-react';
 
 const departments = [
@@ -43,11 +42,12 @@ export function StaffRegistration() {
   });
   const [photo, setPhoto] = useState<string>('');
   const [isCapturing, setIsCapturing] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   const [fingerprintEnrolled, setFingerprintEnrolled] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const { toast } = useToast();
+  
+  const { createStaff } = useStaff();
+  const [isSaving, setIsSaving] = useState(false);
 
   const generateStaffId = () => {
     const prefix = 'STF';
@@ -69,11 +69,7 @@ export function StaffRegistration() {
         videoRef.current.srcObject = stream;
       }
     } catch (error) {
-      toast({
-        title: "Camera Error",
-        description: "Unable to access camera. Please check permissions.",
-        variant: "destructive",
-      });
+      console.error('Camera access failed:', error);
       setIsCapturing(false);
     }
   };
@@ -98,11 +94,6 @@ export function StaffRegistration() {
           stream.getTracks().forEach(track => track.stop());
         }
         setIsCapturing(false);
-        
-        toast({
-          title: "Photo captured",
-          description: "Staff photo has been captured successfully",
-        });
       }
     }
   };
@@ -116,45 +107,13 @@ export function StaffRegistration() {
     // Simulate fingerprint enrollment
     setTimeout(() => {
       setFingerprintEnrolled(true);
-      toast({
-        title: "Fingerprint enrolled",
-        description: "Fingerprint has been enrolled successfully",
-      });
     }, 2000);
   };
 
   const validateForm = () => {
     const required = ['fullName', 'email', 'phone', 'staffId', 'department', 'role'];
     const missing = required.filter(field => !formData[field as keyof typeof formData]);
-    
-    if (missing.length > 0) {
-      toast({
-        title: "Missing Information",
-        description: `Please fill in: ${missing.join(', ')}`,
-        variant: "destructive",
-      });
-      return false;
-    }
-    
-    if (!photo) {
-      toast({
-        title: "Photo Required",
-        description: "Please capture a staff photo",
-        variant: "destructive",
-      });
-      return false;
-    }
-    
-    if (!fingerprintEnrolled) {
-      toast({
-        title: "Fingerprint Required",
-        description: "Please enroll fingerprint",
-        variant: "destructive",
-      });
-      return false;
-    }
-    
-    return true;
+    return missing.length === 0 && photo && fingerprintEnrolled;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -165,48 +124,28 @@ export function StaffRegistration() {
     setIsSaving(true);
     
     try {
-      // Check if staff ID already exists
-      const existingStaff = await DatabaseService.getStaffByStaffId(formData.staffId);
-      if (existingStaff) {
-        toast({
-          title: "Staff ID exists",
-          description: "This staff ID is already registered",
-          variant: "destructive",
-        });
-        setIsSaving(false);
-        return;
-      }
-      
-      await DatabaseService.createStaff({
+      const success = await createStaff({
         ...formData,
         photo,
-        fingerprintId: crypto.randomUUID(), // Simulate fingerprint ID
-        isActive: true // Add the missing isActive property
+        fingerprintId: crypto.randomUUID(),
+        isActive: true
       });
       
-      toast({
-        title: "Registration successful",
-        description: `${formData.fullName} has been registered successfully`,
-      });
-      
-      // Reset form
-      setFormData({
-        fullName: '',
-        email: '',
-        phone: '',
-        staffId: '',
-        department: '',
-        role: ''
-      });
-      setPhoto('');
-      setFingerprintEnrolled(false);
-      
+      if (success) {
+        // Reset form
+        setFormData({
+          fullName: '',
+          email: '',
+          phone: '',
+          staffId: '',
+          department: '',
+          role: ''
+        });
+        setPhoto('');
+        setFingerprintEnrolled(false);
+      }
     } catch (error) {
-      toast({
-        title: "Registration failed",
-        description: "Failed to register staff member",
-        variant: "destructive",
-      });
+      console.error('Registration failed:', error);
     } finally {
       setIsSaving(false);
     }
@@ -408,7 +347,7 @@ export function StaffRegistration() {
               type="submit"
               size="lg"
               className="w-full"
-              disabled={isSaving}
+              disabled={isSaving || !validateForm()}
             >
               {isSaving ? (
                 <>
@@ -419,7 +358,7 @@ export function StaffRegistration() {
                 <>
                   <Save className="h-4 w-4 mr-2" />
                   Register Staff Member
-                </>
+                </Save>
               )}
             </Button>
           </CardContent>
