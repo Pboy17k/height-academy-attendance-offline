@@ -34,13 +34,20 @@ export function Header() {
   return (
     <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
       <div className="px-6 py-4 flex items-center justify-between">
-        <div className="flex-1">
-          <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
-            Greater Height Academy
-          </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 font-mono">
-            {currentTime}
-          </p>
+        <div className="flex items-center space-x-4">
+          <img 
+            src="/lovable-uploads/fa512d41-576b-43a9-88ba-aaa4123bc20a.png" 
+            alt="Al'asr Comprehensive Academy Logo" 
+            className="h-12 w-12 object-contain"
+          />
+          <div>
+            <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
+              Al'asr Comprehensive Academy
+            </h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400 font-mono">
+              {currentTime}
+            </p>
+          </div>
         </div>
         
         <div className="flex items-center space-x-4">
