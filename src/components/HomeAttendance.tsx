@@ -168,20 +168,25 @@ export function HomeAttendance() {
                     className={`mx-auto w-48 h-48 rounded-full border-8 flex items-center justify-center cursor-pointer transition-all duration-300 ${
                       isScanning
                         ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 animate-pulse shadow-lg shadow-blue-500/50'
-                        : 'border-gray-300 dark:border-gray-600 hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 animate-pulse'
+                        : 'border-gray-300 dark:border-gray-600 hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20'
                     }`}
                     onClick={simulateFingerprintScan}
                     style={{
                       animation: isScanning 
                         ? 'pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite' 
-                        : 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite, fingerprint-blink 3s ease-in-out infinite'
+                        : 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite'
                     }}
                   >
-                    <Fingerprint className={`h-20 w-20 ${
-                      isScanning 
-                        ? 'text-blue-600 animate-pulse' 
-                        : 'text-blue-500 dark:text-blue-400'
-                    } transition-all duration-300`} />
+                    <Fingerprint 
+                      className={`h-20 w-20 ${
+                        isScanning 
+                          ? 'text-blue-600 animate-pulse' 
+                          : 'text-blue-500 dark:text-blue-400'
+                      } transition-all duration-300`}
+                      style={{
+                        animation: !isScanning ? 'pulse 3s ease-in-out infinite' : undefined
+                      }}
+                    />
                   </div>
                   <div>
                     <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
@@ -236,13 +241,6 @@ export function HomeAttendance() {
           <CompactLogin />
         </div>
       </div>
-
-      <style jsx>{`
-        @keyframes fingerprint-blink {
-          0%, 50% { opacity: 1; }
-          25%, 75% { opacity: 0.3; }
-        }
-      `}</style>
     </div>
   );
 }
