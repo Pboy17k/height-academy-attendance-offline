@@ -25,15 +25,17 @@ export function Sidebar() {
     <div className="w-64 bg-white dark:bg-gray-800 shadow-sm border-r border-gray-200 dark:border-gray-700">
       <div className="p-6">
         <div className="flex items-center space-x-3">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-            <span className="text-white font-bold text-sm">GH</span>
-          </div>
+          <img 
+            src="/lovable-uploads/fa512d41-576b-43a9-88ba-aaa4123bc20a.png" 
+            alt="Al'asr Comprehensive Academy Logo" 
+            className="h-10 w-10 object-contain"
+          />
           <div>
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-              Attendance
+            <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
+              Al'asr Comprehensive
             </h2>
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              Management System
+              Academy
             </p>
           </div>
         </div>

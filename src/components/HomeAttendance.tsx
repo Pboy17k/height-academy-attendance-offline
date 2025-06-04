@@ -43,21 +43,6 @@ export function HomeAttendance() {
           const randomStaff = allStaff[Math.floor(Math.random() * allStaff.length)];
           const lastRecord = await DatabaseService.getStaffLatestAttendance(randomStaff.id);
           
-          if (lastRecord) {
-            const timeDiff = Date.now() - new Date(lastRecord.timestamp).getTime();
-            const minutesDiff = timeDiff / (1000 * 60);
-            
-            if (minutesDiff < 10) {
-              toast({
-                title: "Too Soon",
-                description: `Please wait ${Math.ceil(10 - minutesDiff)} more minutes before next scan`,
-                variant: "destructive",
-              });
-              setIsScanning(false);
-              return;
-            }
-          }
-          
           const nextType = getNextAttendanceType(lastRecord);
           
           const newRecord = await DatabaseService.recordAttendance({
@@ -126,9 +111,26 @@ export function HomeAttendance() {
         </Button>
       </header>
 
+      {/* School Logo and Name Header */}
+      <div className="absolute top-6 left-6 flex items-center space-x-3 z-10">
+        <img 
+          src="/lovable-uploads/fa512d41-576b-43a9-88ba-aaa4123bc20a.png" 
+          alt="Al'asr Comprehensive Academy Logo" 
+          className="h-12 w-12 object-contain"
+        />
+        <div>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+            Al'asr Comprehensive Academy
+          </h1>
+          <p className="text-sm text-gray-600 dark:text-gray-300">
+            Attendance Management System
+          </p>
+        </div>
+      </div>
+
       <div className="flex flex-col lg:flex-row min-h-screen">
         {/* Attendance Station - 70% width */}
-        <div className="flex-1 lg:w-[70%] flex flex-col items-center justify-center p-8 space-y-8">
+        <div className="flex-1 lg:w-[70%] flex flex-col items-center justify-center p-8 space-y-8 pt-24">
           <div className="text-center">
             <DigitalClock />
           </div>

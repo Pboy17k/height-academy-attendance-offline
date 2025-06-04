@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { DatabaseService, AttendanceRecord, Staff } from '@/lib/database';
@@ -127,7 +126,7 @@ export function Dashboard() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
-        <p className="text-gray-500 dark:text-gray-400">Welcome to Greater Height Academy Attendance Platform</p>
+        <p className="text-gray-500 dark:text-gray-400">Welcome to Al'asr Comprehensive Academy Attendance Platform</p>
       </div>
 
       {/* Stats Cards */}
