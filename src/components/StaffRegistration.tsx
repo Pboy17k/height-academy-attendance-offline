@@ -1,3 +1,4 @@
+
 import React, { useState, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -160,7 +161,6 @@ export function StaffRegistration() {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Personal Information */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
@@ -253,9 +253,7 @@ export function StaffRegistration() {
             </CardContent>
           </Card>
 
-          {/* Photo and Biometric */}
           <div className="space-y-6">
-            {/* Photo Capture */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
@@ -307,7 +305,6 @@ export function StaffRegistration() {
               </CardContent>
             </Card>
 
-            {/* Fingerprint Enrollment */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
@@ -340,7 +337,6 @@ export function StaffRegistration() {
           </div>
         </div>
 
-        {/* Submit Button */}
         <Card>
           <CardContent className="pt-6">
             <Button
@@ -358,7 +354,7 @@ export function StaffRegistration() {
                 <>
                   <Save className="h-4 w-4 mr-2" />
                   Register Staff Member
-                </Save>
+                </>
               )}
             </Button>
           </CardContent>
