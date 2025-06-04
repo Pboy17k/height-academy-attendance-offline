@@ -2,7 +2,7 @@
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
 
 // Database schema interface
-interface AttendanceDB extends DBSchema {
+interface AttendanceSystemDB extends DBSchema {
   staff: {
     key: string;
     value: Staff;
@@ -20,7 +20,7 @@ interface AttendanceDB extends DBSchema {
   };
   settings: {
     key: string;
-    value: AppSettings;
+    value: AppSettingsRecord;
   };
 }
 
@@ -70,17 +70,22 @@ export interface AppSettings {
   };
 }
 
+// Internal type for storage (includes id)
+interface AppSettingsRecord extends AppSettings {
+  id: string;
+}
+
 // Database instance
-let dbInstance: IDBPDatabase<AttendanceDB> | null = null;
+let dbInstance: IDBPDatabase<AttendanceSystemDB> | null = null;
 
 // Initialize database with proper error handling and persistence
-export async function initDB(): Promise<IDBPDatabase<AttendanceDB>> {
+export async function initDB(): Promise<IDBPDatabase<AttendanceSystemDB>> {
   try {
     if (dbInstance) {
       return dbInstance;
     }
 
-    dbInstance = await openDB<AttendanceDB>('AlasrAcademyDB', 2, {
+    dbInstance = await openDB<AttendanceSystemDB>('AlasrAcademyDB', 2, {
       upgrade(db, oldVersion, newVersion, transaction) {
         console.log(`Upgrading database from version ${oldVersion} to ${newVersion}`);
         
@@ -131,7 +136,7 @@ export async function initDB(): Promise<IDBPDatabase<AttendanceDB>> {
 }
 
 // Get database instance
-export async function getDB(): Promise<IDBPDatabase<AttendanceDB>> {
+export async function getDB(): Promise<IDBPDatabase<AttendanceSystemDB>> {
   if (!dbInstance) {
     return await initDB();
   }
@@ -342,7 +347,12 @@ export class SettingsDB {
     try {
       const db = await getDB();
       const settings = await db.get('settings', 'app-settings');
-      return settings || {
+      if (settings) {
+        // Return without the id property
+        const { id, ...appSettings } = settings;
+        return appSettings;
+      }
+      return {
         theme: 'light',
         autoLogout: 30,
         requireFingerprint: true,
@@ -370,7 +380,8 @@ export class SettingsDB {
       const db = await getDB();
       const current = await this.get();
       const updated = { ...current, ...settings };
-      await db.put('settings', { id: 'app-settings', ...updated });
+      const settingsRecord: AppSettingsRecord = { id: 'app-settings', ...updated };
+      await db.put('settings', settingsRecord);
       console.log('Settings updated in IndexedDB');
       return updated;
     } catch (error) {
