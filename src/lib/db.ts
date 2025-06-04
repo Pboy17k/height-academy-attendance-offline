@@ -1,5 +1,5 @@
-
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
+import { LocalStorageBackup } from './storage';
 
 // Database schema interface
 interface AttendanceSystemDB extends DBSchema {
@@ -157,6 +157,11 @@ export class StaffDB {
       
       await db.add('staff', newStaff);
       console.log('Staff created in IndexedDB:', newStaff.fullName);
+      
+      // Backup to localStorage
+      const allStaff = await this.getAll();
+      LocalStorageBackup.backupStaff(allStaff);
+      
       return newStaff;
     } catch (error) {
       console.error('Failed to create staff in IndexedDB:', error);
@@ -168,10 +173,19 @@ export class StaffDB {
     try {
       const db = await getDB();
       const staff = await db.getAll('staff');
-      return staff.sort((a, b) => a.fullName.localeCompare(b.fullName));
+      const sortedStaff = staff.sort((a, b) => a.fullName.localeCompare(b.fullName));
+      
+      // Backup to localStorage whenever we fetch
+      LocalStorageBackup.backupStaff(sortedStaff);
+      
+      return sortedStaff;
     } catch (error) {
       console.error('Failed to get all staff from IndexedDB:', error);
-      return [];
+      
+      // Fallback to localStorage if IndexedDB fails
+      console.log('Attempting to load staff from localStorage backup...');
+      const backup = LocalStorageBackup.getStaffBackup();
+      return backup.sort((a, b) => a.fullName.localeCompare(b.fullName));
     }
   }
 
@@ -182,7 +196,10 @@ export class StaffDB {
       return staff || null;
     } catch (error) {
       console.error('Failed to get staff by ID from IndexedDB:', error);
-      return null;
+      
+      // Fallback to localStorage
+      const backup = LocalStorageBackup.getStaffBackup();
+      return backup.find(s => s.id === id) || null;
     }
   }
 
@@ -193,7 +210,10 @@ export class StaffDB {
       return staff || null;
     } catch (error) {
       console.error('Failed to get staff by staffId from IndexedDB:', error);
-      return null;
+      
+      // Fallback to localStorage
+      const backup = LocalStorageBackup.getStaffBackup();
+      return backup.find(s => s.staffId === staffId) || null;
     }
   }
 
@@ -206,6 +226,11 @@ export class StaffDB {
       const updated = { ...existing, ...updates };
       await db.put('staff', updated);
       console.log('Staff updated in IndexedDB:', updated.fullName);
+      
+      // Backup to localStorage
+      const allStaff = await this.getAll();
+      LocalStorageBackup.backupStaff(allStaff);
+      
       return updated;
     } catch (error) {
       console.error('Failed to update staff in IndexedDB:', error);
@@ -216,8 +241,21 @@ export class StaffDB {
   static async delete(id: string): Promise<boolean> {
     try {
       const db = await getDB();
+      
+      // First get the staff member to log the deletion
+      const staff = await db.get('staff', id);
+      if (staff) {
+        console.log('Deleting staff from IndexedDB:', staff.fullName);
+      }
+      
+      // Delete from IndexedDB
       await db.delete('staff', id);
-      console.log('Staff deleted from IndexedDB');
+      console.log('Staff deleted from IndexedDB successfully');
+      
+      // Update localStorage backup
+      const allStaff = await this.getAll();
+      LocalStorageBackup.backupStaff(allStaff);
+      
       return true;
     } catch (error) {
       console.error('Failed to delete staff from IndexedDB:', error);

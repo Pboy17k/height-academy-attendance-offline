@@ -1,104 +1,141 @@
 
-import { StaffDB } from './db';
+import { StaffDB, AttendanceDB } from './db';
 
-export async function generateSampleStaff() {
-  const existingStaff = await StaffDB.getAll();
-  if (existingStaff.length > 0) {
-    console.log('Sample staff already exists, skipping generation');
-    return;
+const sampleStaffData = [
+  {
+    fullName: "Dr. Ahmed Hassan",
+    email: "ahmed.hassan@alasracademy.edu",
+    phone: "+20 123 456 7890",
+    staffId: "STF001",
+    department: "Administration",
+    role: "Principal",
+    photo: "/placeholder.svg",
+    fingerprintId: "fp_001"
+  },
+  {
+    fullName: "Ms. Fatima Al-Zahra",
+    email: "fatima.alzahra@alasracademy.edu",
+    phone: "+20 123 456 7891",
+    staffId: "STF002",
+    department: "Teaching Staff",
+    role: "Vice Principal",
+    photo: "/placeholder.svg",
+    fingerprintId: "fp_002"
+  },
+  {
+    fullName: "Mr. Omar Ibn Khattab",
+    email: "omar.khattab@alasracademy.edu",
+    phone: "+20 123 456 7892",
+    staffId: "STF003",
+    department: "Teaching Staff",
+    role: "Teacher",
+    photo: "/placeholder.svg",
+    fingerprintId: "fp_003"
+  },
+  {
+    fullName: "Ms. Aisha Siddiqah",
+    email: "aisha.siddiqah@alasracademy.edu",
+    phone: "+20 123 456 7893",
+    staffId: "STF004",
+    department: "Library",
+    role: "Librarian",
+    photo: "/placeholder.svg",
+    fingerprintId: "fp_004"
+  },
+  {
+    fullName: "Mr. Khalid Al-Waleed",
+    email: "khalid.waleed@alasracademy.edu",
+    phone: "+20 123 456 7894",
+    staffId: "STF005",
+    department: "Laboratory",
+    role: "Lab Assistant",
+    photo: "/placeholder.svg",
+    fingerprintId: "fp_005"
+  },
+  {
+    fullName: "Ms. Zainab Al-Kubra",
+    email: "zainab.kubra@alasracademy.edu",
+    phone: "+20 123 456 7895",
+    staffId: "STF006",
+    department: "Administration",
+    role: "Administrative Officer",
+    photo: "/placeholder.svg",
+    fingerprintId: "fp_006"
+  },
+  {
+    fullName: "Mr. Ali Ibn Abi Talib",
+    email: "ali.talib@alasracademy.edu",
+    phone: "+20 123 456 7896",
+    staffId: "STF007",
+    department: "Security",
+    role: "Security Guard",
+    photo: "/placeholder.svg",
+    fingerprintId: "fp_007"
+  },
+  {
+    fullName: "Ms. Khadijah Al-Kubra",
+    email: "khadijah.kubra@alasracademy.edu",
+    phone: "+20 123 456 7897",
+    staffId: "STF008",
+    department: "Support Staff",
+    role: "Accountant",
+    photo: "/placeholder.svg",
+    fingerprintId: "fp_008"
   }
+];
 
-  console.log('Generating sample staff data...');
-
-  const sampleStaff = [
-    {
-      fullName: 'Ahmed Al-Rashid',
-      email: 'ahmed.rashid@alasracademy.edu',
-      phone: '+1-555-0101',
-      staffId: 'STF001',
-      department: 'Mathematics',
-      role: 'Senior Teacher',
-      photo: '',
-      isActive: true,
-    },
-    {
-      fullName: 'Fatima Al-Zahra',
-      email: 'fatima.zahra@alasracademy.edu',
-      phone: '+1-555-0102',
-      staffId: 'STF002',
-      department: 'English',
-      role: 'Head of Department',
-      photo: '',
-      isActive: true,
-    },
-    {
-      fullName: 'Omar Hassan',
-      email: 'omar.hassan@alasracademy.edu',
-      phone: '+1-555-0103',
-      staffId: 'STF003',
-      department: 'Science',
-      role: 'Laboratory Technician',
-      photo: '',
-      isActive: true,
-    },
-    {
-      fullName: 'Aisha Ibrahim',
-      email: 'aisha.ibrahim@alasracademy.edu',
-      phone: '+1-555-0104',
-      staffId: 'STF004',
-      department: 'History',
-      role: 'Teacher',
-      photo: '',
-      isActive: true,
-    },
-    {
-      fullName: 'Yusuf Al-Mahmoud',
-      email: 'yusuf.mahmoud@alasracademy.edu',
-      phone: '+1-555-0105',
-      staffId: 'STF005',
-      department: 'Physical Education',
-      role: 'Sports Coordinator',
-      photo: '',
-      isActive: true,
-    },
-    {
-      fullName: 'Zainab Al-Kindi',
-      email: 'zainab.kindi@alasracademy.edu',
-      phone: '+1-555-0106',
-      staffId: 'STF006',
-      department: 'Art',
-      role: 'Art Teacher',
-      photo: '',
-      isActive: true,
-    },
-    {
-      fullName: 'Ibrahim Al-Farisi',
-      email: 'ibrahim.farisi@alasracademy.edu',
-      phone: '+1-555-0107',
-      staffId: 'STF007',
-      department: 'Music',
-      role: 'Music Director',
-      photo: '',
-      isActive: true,
-    },
-    {
-      fullName: 'Maryam Al-Andalusi',
-      email: 'maryam.andalusi@alasracademy.edu',
-      phone: '+1-555-0108',
-      staffId: 'STF008',
-      department: 'Administration',
-      role: 'Principal',
-      photo: '',
-      isActive: true,
-    }
-  ];
-
+export async function generateSampleStaff(): Promise<void> {
   try {
-    for (const staff of sampleStaff) {
-      await StaffDB.create(staff);
+    // Check if any staff exists in the database
+    const existingStaff = await StaffDB.getAll();
+    
+    // Only generate sample data if NO staff exists (completely empty database)
+    if (existingStaff.length === 0) {
+      console.log('Database is empty, generating initial sample staff...');
+      
+      // Create sample staff
+      for (const staffData of sampleStaffData) {
+        await StaffDB.create(staffData);
+      }
+      
+      console.log(`Created ${sampleStaffData.length} sample staff members in IndexedDB`);
+      
+      // Generate some sample attendance records for today
+      await generateSampleAttendance();
+    } else {
+      console.log(`Database already contains ${existingStaff.length} staff members, skipping sample generation`);
     }
-    console.log('Sample staff data generated successfully');
   } catch (error) {
     console.error('Failed to generate sample staff:', error);
+  }
+}
+
+async function generateSampleAttendance(): Promise<void> {
+  try {
+    const staff = await StaffDB.getAll();
+    const today = new Date();
+    
+    // Generate check-in records for some staff (simulate morning attendance)
+    const checkInTimes = [
+      new Date(today.getFullYear(), today.getMonth(), today.getDate(), 7, 30),
+      new Date(today.getFullYear(), today.getMonth(), today.getDate(), 7, 45),
+      new Date(today.getFullYear(), today.getMonth(), today.getDate(), 8, 0),
+      new Date(today.getFullYear(), today.getMonth(), today.getDate(), 8, 15),
+    ];
+    
+    for (let i = 0; i < Math.min(4, staff.length); i++) {
+      await AttendanceDB.create({
+        staffId: staff[i].id,
+        staffName: staff[i].fullName,
+        type: 'check-in',
+        timestamp: checkInTimes[i],
+        method: 'fingerprint',
+        deviceInfo: 'Main Entrance Scanner'
+      });
+    }
+    
+    console.log('Generated sample attendance records');
+  } catch (error) {
+    console.error('Failed to generate sample attendance:', error);
   }
 }

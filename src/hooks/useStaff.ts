@@ -16,7 +16,7 @@ export function useStaff() {
       setError(null);
       const allStaff = await StaffDB.getAll();
       setStaff(allStaff);
-      console.log('Staff loaded from IndexedDB:', allStaff.length, 'members');
+      console.log('Staff loaded from database:', allStaff.length, 'members');
     } catch (err) {
       const errorMessage = 'Failed to load staff members';
       setError(errorMessage);
@@ -46,7 +46,9 @@ export function useStaff() {
       }
 
       const newStaff = await StaffDB.create(staffData);
-      setStaff(prev => [...prev, newStaff].sort((a, b) => a.fullName.localeCompare(b.fullName)));
+      
+      // Refresh the entire staff list to ensure consistency
+      await loadStaff();
       
       toast({
         title: "Registration successful",
@@ -65,17 +67,15 @@ export function useStaff() {
       });
       return null;
     }
-  }, [toast]);
+  }, [toast, loadStaff]);
 
   // Update staff member
   const updateStaff = useCallback(async (id: string, updates: Partial<Staff>) => {
     try {
       const updatedStaff = await StaffDB.update(id, updates);
       if (updatedStaff) {
-        setStaff(prev => 
-          prev.map(s => s.id === id ? updatedStaff : s)
-            .sort((a, b) => a.fullName.localeCompare(b.fullName))
-        );
+        // Refresh the entire staff list to ensure consistency
+        await loadStaff();
         
         toast({
           title: "Staff updated",
@@ -96,7 +96,7 @@ export function useStaff() {
       });
       return null;
     }
-  }, [toast]);
+  }, [toast, loadStaff]);
 
   // Delete staff member
   const deleteStaff = useCallback(async (id: string) => {
@@ -105,11 +105,12 @@ export function useStaff() {
       const success = await StaffDB.delete(id);
       
       if (success) {
-        setStaff(prev => prev.filter(s => s.id !== id));
+        // Refresh the entire staff list to ensure consistency
+        await loadStaff();
         
         toast({
           title: "Staff deleted",
-          description: `${staffToDelete?.fullName || 'Staff member'} has been removed from the system`,
+          description: `${staffToDelete?.fullName || 'Staff member'} has been removed from the system permanently`,
         });
         
         return true;
@@ -126,7 +127,7 @@ export function useStaff() {
       });
       return false;
     }
-  }, [staff, toast]);
+  }, [staff, toast, loadStaff]);
 
   // Get staff by ID
   const getStaffById = useCallback((id: string): Staff | null => {
