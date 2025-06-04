@@ -39,7 +39,7 @@ export function CompactLogin() {
           title: "Login successful",
           description: "Welcome to the admin dashboard",
         });
-        navigate('/');
+        navigate('/overview');
       } else {
         toast({
           title: "Login failed",
