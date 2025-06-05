@@ -1,3 +1,4 @@
+
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
 import { LocalStorageBackup } from './storage';
 
@@ -143,10 +144,12 @@ export async function getDB(): Promise<IDBPDatabase<AttendanceSystemDB>> {
   return dbInstance;
 }
 
-// Add method to clear all sample data
+// Only clear sample data when explicitly called (not automatically)
 export async function clearAllSampleData(): Promise<void> {
   try {
     const db = await getDB();
+    
+    console.log('Manually clearing all sample data...');
     
     // Clear all staff data
     const staffTransaction = db.transaction('staff', 'readwrite');
@@ -162,9 +165,6 @@ export async function clearAllSampleData(): Promise<void> {
     
     // Clear localStorage backups
     LocalStorageBackup.clearAllBackups();
-    
-    // Set flag that user will create their own data
-    LocalStorageBackup.setUserDataModified();
     
   } catch (error) {
     console.error('Failed to clear sample data:', error);
@@ -184,12 +184,12 @@ export class StaffDB {
       };
       
       await db.add('staff', newStaff);
-      console.log('Staff created in IndexedDB:', newStaff.fullName);
+      console.log('Staff created successfully in IndexedDB:', newStaff.fullName);
       
       // Mark that user has modified data
       LocalStorageBackup.setUserDataModified();
       
-      // Backup to localStorage
+      // Backup to localStorage immediately
       const allStaff = await this.getAll();
       LocalStorageBackup.backupStaff(allStaff);
       
@@ -206,6 +206,8 @@ export class StaffDB {
       const staff = await db.getAll('staff');
       const sortedStaff = staff.sort((a, b) => a.fullName.localeCompare(b.fullName));
       
+      console.log('Staff loaded from IndexedDB:', sortedStaff.length, 'members');
+      
       // Backup to localStorage whenever we fetch
       LocalStorageBackup.backupStaff(sortedStaff);
       
@@ -216,6 +218,7 @@ export class StaffDB {
       // Fallback to localStorage if IndexedDB fails
       console.log('Attempting to load staff from localStorage backup...');
       const backup = LocalStorageBackup.getStaffBackup();
+      console.log('Loaded from localStorage backup:', backup.length, 'staff members');
       return backup.sort((a, b) => a.fullName.localeCompare(b.fullName));
     }
   }
@@ -256,7 +259,7 @@ export class StaffDB {
       
       const updated = { ...existing, ...updates };
       await db.put('staff', updated);
-      console.log('Staff updated in IndexedDB:', updated.fullName);
+      console.log('Staff updated successfully in IndexedDB:', updated.fullName);
       
       // Mark that user has modified data
       LocalStorageBackup.setUserDataModified();

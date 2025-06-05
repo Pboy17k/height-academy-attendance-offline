@@ -10,31 +10,57 @@ export function useStaff() {
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  // Load all staff from IndexedDB
+  // Load all staff from IndexedDB with improved error handling
   const loadStaff = useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
+      console.log('Loading staff from database...');
+      
       const allStaff = await StaffDB.getAll();
       setStaff(allStaff);
-      console.log('Staff loaded from database:', allStaff.length, 'members');
+      console.log('Staff loaded successfully:', allStaff.length, 'members');
+      
+      // Ensure localStorage backup is up to date
+      LocalStorageBackup.backupStaff(allStaff);
+      
     } catch (err) {
       const errorMessage = 'Failed to load staff members';
       setError(errorMessage);
       console.error('useStaff - loadStaff error:', err);
-      toast({
-        title: "Database Error",
-        description: errorMessage,
-        variant: "destructive",
-      });
+      
+      // Try to load from localStorage backup as fallback
+      try {
+        console.log('Attempting to load from localStorage backup...');
+        const backupStaff = LocalStorageBackup.getStaffBackup();
+        setStaff(backupStaff);
+        console.log('Loaded from localStorage backup:', backupStaff.length, 'members');
+        
+        if (backupStaff.length > 0) {
+          toast({
+            title: "Loaded from backup",
+            description: "Staff data loaded from local backup",
+            variant: "default",
+          });
+        }
+      } catch (backupError) {
+        console.error('Failed to load from backup:', backupError);
+        toast({
+          title: "Database Error",
+          description: errorMessage,
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsLoading(false);
     }
   }, [toast]);
 
-  // Create new staff member
+  // Create new staff member with improved persistence
   const createStaff = useCallback(async (staffData: Omit<Staff, 'id' | 'createdAt'>) => {
     try {
+      console.log('Creating new staff member:', staffData.fullName);
+      
       // Check if staff ID already exists
       const existingStaff = await StaffDB.getByStaffId(staffData.staffId);
       if (existingStaff) {
@@ -47,6 +73,7 @@ export function useStaff() {
       }
 
       const newStaff = await StaffDB.create(staffData);
+      console.log('Staff created successfully:', newStaff.fullName);
       
       // Refresh the entire staff list to ensure consistency
       await loadStaff();
@@ -156,6 +183,7 @@ export function useStaff() {
 
   // Load staff on hook initialization
   useEffect(() => {
+    console.log('useStaff hook initialized, loading staff...');
     loadStaff();
   }, [loadStaff]);
 

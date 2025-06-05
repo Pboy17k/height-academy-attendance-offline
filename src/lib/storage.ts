@@ -21,7 +21,7 @@ export class LocalStorageBackup {
   static setUserDataModified(): void {
     try {
       localStorage.setItem(STORAGE_KEYS.USER_DATA_FLAG, 'true');
-      console.log('User data modification flag set');
+      console.log('User data modification flag set - data will persist across sessions');
     } catch (error) {
       console.error('Failed to set user data flag:', error);
     }
@@ -36,11 +36,17 @@ export class LocalStorageBackup {
     }
   }
 
-  // Staff backup operations
+  // Staff backup operations with improved error handling
   static backupStaff(staff: any[]): void {
     try {
-      localStorage.setItem(STORAGE_KEYS.STAFF, JSON.stringify(staff));
-      console.log('Staff data backed up to localStorage');
+      const timestamp = new Date().toISOString();
+      const backupData = {
+        staff,
+        timestamp,
+        count: staff.length
+      };
+      localStorage.setItem(STORAGE_KEYS.STAFF, JSON.stringify(backupData));
+      console.log('Staff data backed up to localStorage:', staff.length, 'members at', timestamp);
     } catch (error) {
       console.error('Failed to backup staff to localStorage:', error);
     }
@@ -49,7 +55,18 @@ export class LocalStorageBackup {
   static getStaffBackup(): any[] {
     try {
       const data = localStorage.getItem(STORAGE_KEYS.STAFF);
-      return data ? JSON.parse(data) : [];
+      if (!data) {
+        console.log('No staff backup found in localStorage');
+        return [];
+      }
+      
+      const parsed = JSON.parse(data);
+      
+      // Handle both old format (array) and new format (object with metadata)
+      const staff = Array.isArray(parsed) ? parsed : (parsed.staff || []);
+      
+      console.log('Staff backup loaded from localStorage:', staff.length, 'members');
+      return staff;
     } catch (error) {
       console.error('Failed to get staff backup from localStorage:', error);
       return [];
