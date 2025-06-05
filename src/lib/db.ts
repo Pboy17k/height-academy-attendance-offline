@@ -1,4 +1,3 @@
-
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
 import { LocalStorageBackup } from './storage';
 
@@ -142,6 +141,34 @@ export async function getDB(): Promise<IDBPDatabase<AttendanceSystemDB>> {
     return await initDB();
   }
   return dbInstance;
+}
+
+// Add method to clear all sample data
+export async function clearAllSampleData(): Promise<void> {
+  try {
+    const db = await getDB();
+    
+    // Clear all staff data
+    const staffTransaction = db.transaction('staff', 'readwrite');
+    await staffTransaction.objectStore('staff').clear();
+    await staffTransaction.done;
+    
+    // Clear all attendance data
+    const attendanceTransaction = db.transaction('attendance', 'readwrite');
+    await attendanceTransaction.objectStore('attendance').clear();
+    await attendanceTransaction.done;
+    
+    console.log('All sample data cleared from IndexedDB');
+    
+    // Clear localStorage backups
+    LocalStorageBackup.clearAllBackups();
+    
+    // Set flag that user will create their own data
+    LocalStorageBackup.setUserDataModified();
+    
+  } catch (error) {
+    console.error('Failed to clear sample data:', error);
+  }
 }
 
 // Staff operations

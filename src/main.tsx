@@ -2,24 +2,22 @@
 import { createRoot } from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
-import { initializeDefaultAdmin } from '@/lib/db'
-import { generateSampleStaff } from '@/lib/sampleData'
+import { initializeDefaultAdmin, clearAllSampleData } from '@/lib/db'
 
-// Enhanced initialization with persistent storage and user data tracking
+// Enhanced initialization with clean slate approach
 const initializeApp = async () => {
   try {
     console.log('Initializing Al\'asr Comprehensive Academy Attendance System...');
     
-    // Initialize IndexedDB with admin account
+    // Initialize IndexedDB with admin account only
     await initializeDefaultAdmin();
     
-    // Generate sample staff ONLY if user has never modified data
-    // This prevents overriding user deletions and modifications
-    await generateSampleStaff();
+    // Clear all existing sample data to start fresh
+    await clearAllSampleData();
     
-    console.log('Application initialized successfully with persistent storage');
+    console.log('Application initialized successfully with clean database');
+    console.log('Sample data generation is disabled - create your own staff data');
     console.log('All data changes will be permanently stored in IndexedDB and localStorage');
-    console.log('User data modifications are tracked to prevent sample data regeneration');
   } catch (error) {
     console.error('Application initialization failed:', error);
     // App will still load but may have limited functionality
