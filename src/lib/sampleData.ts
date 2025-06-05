@@ -1,5 +1,6 @@
 
 import { StaffDB, AttendanceDB } from './db';
+import { LocalStorageBackup } from './storage';
 
 const sampleStaffData = [
   {
@@ -94,12 +95,18 @@ const sampleStaffData = [
 
 export async function generateSampleStaff(): Promise<void> {
   try {
+    // Check if user has already modified data - if so, never regenerate
+    if (LocalStorageBackup.hasUserModifiedData()) {
+      console.log('User has modified data previously, skipping sample generation to preserve user changes');
+      return;
+    }
+
     // Check if any staff exists in the database
     const existingStaff = await StaffDB.getAll();
     
     // Only generate sample data if NO staff exists (completely empty database)
     if (existingStaff.length === 0) {
-      console.log('Database is empty, generating initial sample staff...');
+      console.log('Database is empty and no user modifications detected, generating initial sample staff...');
       
       // Create sample staff
       for (const staffData of sampleStaffData) {
@@ -110,6 +117,9 @@ export async function generateSampleStaff(): Promise<void> {
       
       // Generate some sample attendance records for today
       await generateSampleAttendance();
+      
+      // Important: Do NOT set the user data flag here - this is initial sample data
+      console.log('Sample data generation completed without setting user modification flag');
     } else {
       console.log(`Database already contains ${existingStaff.length} staff members, skipping sample generation`);
     }

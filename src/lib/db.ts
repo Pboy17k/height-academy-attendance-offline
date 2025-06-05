@@ -1,3 +1,4 @@
+
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
 import { LocalStorageBackup } from './storage';
 
@@ -152,11 +153,14 @@ export class StaffDB {
         ...staff,
         id: crypto.randomUUID(),
         createdAt: new Date(),
-        isActive: true
+        isActive: staff.isActive ?? true
       };
       
       await db.add('staff', newStaff);
       console.log('Staff created in IndexedDB:', newStaff.fullName);
+      
+      // Mark that user has modified data
+      LocalStorageBackup.setUserDataModified();
       
       // Backup to localStorage
       const allStaff = await this.getAll();
@@ -227,6 +231,9 @@ export class StaffDB {
       await db.put('staff', updated);
       console.log('Staff updated in IndexedDB:', updated.fullName);
       
+      // Mark that user has modified data
+      LocalStorageBackup.setUserDataModified();
+      
       // Backup to localStorage
       const allStaff = await this.getAll();
       LocalStorageBackup.backupStaff(allStaff);
@@ -251,6 +258,9 @@ export class StaffDB {
       // Delete from IndexedDB
       await db.delete('staff', id);
       console.log('Staff deleted from IndexedDB successfully');
+      
+      // Mark that user has modified data
+      LocalStorageBackup.setUserDataModified();
       
       // Update localStorage backup
       const allStaff = await this.getAll();

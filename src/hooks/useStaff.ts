@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { StaffDB, Staff } from '@/lib/db';
 import { useToast } from '@/hooks/use-toast';
+import { LocalStorageBackup } from '@/lib/storage';
 
 export function useStaff() {
   const [staff, setStaff] = useState<Staff[]>([]);

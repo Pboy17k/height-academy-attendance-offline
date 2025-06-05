@@ -1,12 +1,41 @@
 
-// Local storage utilities for backup persistence
+// Local storage utilities for backup persistence and user data tracking
 const STORAGE_KEYS = {
   STAFF: 'alasr_academy_staff',
   ATTENDANCE: 'alasr_academy_attendance',
-  SETTINGS: 'alasr_academy_settings'
+  SETTINGS: 'alasr_academy_settings',
+  USER_DATA_FLAG: 'alasr_academy_user_data_modified'
 } as const;
 
 export class LocalStorageBackup {
+  // User data tracking
+  static hasUserModifiedData(): boolean {
+    try {
+      return localStorage.getItem(STORAGE_KEYS.USER_DATA_FLAG) === 'true';
+    } catch (error) {
+      console.error('Failed to check user data flag:', error);
+      return false;
+    }
+  }
+
+  static setUserDataModified(): void {
+    try {
+      localStorage.setItem(STORAGE_KEYS.USER_DATA_FLAG, 'true');
+      console.log('User data modification flag set');
+    } catch (error) {
+      console.error('Failed to set user data flag:', error);
+    }
+  }
+
+  static clearUserDataFlag(): void {
+    try {
+      localStorage.removeItem(STORAGE_KEYS.USER_DATA_FLAG);
+      console.log('User data modification flag cleared');
+    } catch (error) {
+      console.error('Failed to clear user data flag:', error);
+    }
+  }
+
   // Staff backup operations
   static backupStaff(staff: any[]): void {
     try {
