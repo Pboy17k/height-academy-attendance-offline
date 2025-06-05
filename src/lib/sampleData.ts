@@ -10,7 +10,8 @@ const sampleStaffData = [
     department: "Administration",
     role: "Principal",
     photo: "/placeholder.svg",
-    fingerprintId: "fp_001"
+    fingerprintId: "fp_001",
+    isActive: true
   },
   {
     fullName: "Ms. Fatima Al-Zahra",
@@ -20,7 +21,8 @@ const sampleStaffData = [
     department: "Teaching Staff",
     role: "Vice Principal",
     photo: "/placeholder.svg",
-    fingerprintId: "fp_002"
+    fingerprintId: "fp_002",
+    isActive: true
   },
   {
     fullName: "Mr. Omar Ibn Khattab",
@@ -30,7 +32,8 @@ const sampleStaffData = [
     department: "Teaching Staff",
     role: "Teacher",
     photo: "/placeholder.svg",
-    fingerprintId: "fp_003"
+    fingerprintId: "fp_003",
+    isActive: true
   },
   {
     fullName: "Ms. Aisha Siddiqah",
@@ -40,7 +43,8 @@ const sampleStaffData = [
     department: "Library",
     role: "Librarian",
     photo: "/placeholder.svg",
-    fingerprintId: "fp_004"
+    fingerprintId: "fp_004",
+    isActive: true
   },
   {
     fullName: "Mr. Khalid Al-Waleed",
@@ -50,7 +54,8 @@ const sampleStaffData = [
     department: "Laboratory",
     role: "Lab Assistant",
     photo: "/placeholder.svg",
-    fingerprintId: "fp_005"
+    fingerprintId: "fp_005",
+    isActive: true
   },
   {
     fullName: "Ms. Zainab Al-Kubra",
@@ -60,7 +65,8 @@ const sampleStaffData = [
     department: "Administration",
     role: "Administrative Officer",
     photo: "/placeholder.svg",
-    fingerprintId: "fp_006"
+    fingerprintId: "fp_006",
+    isActive: true
   },
   {
     fullName: "Mr. Ali Ibn Abi Talib",
@@ -70,7 +76,8 @@ const sampleStaffData = [
     department: "Security",
     role: "Security Guard",
     photo: "/placeholder.svg",
-    fingerprintId: "fp_007"
+    fingerprintId: "fp_007",
+    isActive: true
   },
   {
     fullName: "Ms. Khadijah Al-Kubra",
@@ -80,7 +87,8 @@ const sampleStaffData = [
     department: "Support Staff",
     role: "Accountant",
     photo: "/placeholder.svg",
-    fingerprintId: "fp_008"
+    fingerprintId: "fp_008",
+    isActive: true
   }
 ];
 
