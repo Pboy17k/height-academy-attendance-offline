@@ -1,7 +1,9 @@
+
 import { useState, useEffect, useCallback } from 'react';
-import { StaffDB, Staff } from '@/lib/db';
+import { Staff } from '@/lib/db';
 import { useToast } from '@/hooks/use-toast';
-import { LocalStorageBackup } from '@/lib/storage';
+import { StaffOperations } from '@/services/staffOperations';
+import { StaffValidation } from '@/services/staffValidation';
 
 export function useStaff() {
   const [staff, setStaff] = useState<Staff[]>([]);
@@ -9,41 +11,27 @@ export function useStaff() {
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  // Load all staff from IndexedDB with improved error handling
+  // Load all staff from database
   const loadStaff = useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
-      console.log('Loading staff from database...');
       
-      const allStaff = await StaffDB.getAll();
+      const allStaff = await StaffOperations.loadAllStaff();
       setStaff(allStaff);
-      console.log('Staff loaded successfully:', allStaff.length, 'members');
-      
-      // Ensure localStorage backup is up to date
-      LocalStorageBackup.backupStaff(allStaff);
       
     } catch (err) {
       const errorMessage = 'Failed to load staff members';
       setError(errorMessage);
       console.error('useStaff - loadStaff error:', err);
       
-      // Try to load from localStorage backup as fallback
-      try {
-        console.log('Attempting to load from localStorage backup...');
-        const backupStaff = LocalStorageBackup.getStaffBackup();
-        setStaff(backupStaff);
-        console.log('Loaded from localStorage backup:', backupStaff.length, 'members');
-        
-        if (backupStaff.length > 0) {
-          toast({
-            title: "Loaded from backup",
-            description: "Staff data loaded from local backup",
-            variant: "default",
-          });
-        }
-      } catch (backupError) {
-        console.error('Failed to load from backup:', backupError);
+      if (err instanceof Error && err.message.includes('backup')) {
+        toast({
+          title: "Loaded from backup",
+          description: "Staff data loaded from local backup",
+          variant: "default",
+        });
+      } else {
         toast({
           title: "Database Error",
           description: errorMessage,
@@ -55,66 +43,41 @@ export function useStaff() {
     }
   }, [toast]);
 
-  // Create new staff member with duplicate checking and specific error messages
+  // Create new staff member
   const createStaff = useCallback(async (staffData: Omit<Staff, 'id' | 'createdAt'>) => {
     try {
-      console.log('Creating new staff member:', staffData.fullName);
+      const newStaff = await StaffOperations.createStaff(staffData);
       
-      // Check if staff ID already exists
-      const existingStaffId = await StaffDB.getByStaffId(staffData.staffId);
-      if (existingStaffId) {
+      if (newStaff) {
+        // Refresh the entire staff list to ensure consistency
+        await loadStaff();
+        
         toast({
-          title: "Registration failed",
-          description: `Staff ID "${staffData.staffId}" is already registered. Please use a different staff ID.`,
-          variant: "destructive",
+          title: "Registration successful",
+          description: `${staffData.fullName} has been registered successfully`,
         });
-        return null;
+        
+        return newStaff;
       }
-
-      // Check if email already exists
-      const allStaff = await StaffDB.getAll();
-      const existingEmail = allStaff.find(s => s.email.toLowerCase() === staffData.email.toLowerCase());
-      if (existingEmail) {
-        toast({
-          title: "Registration failed", 
-          description: `Email "${staffData.email}" is already registered to ${existingEmail.fullName}. Please use a different email address.`,
-          variant: "destructive",
-        });
-        return null;
-      }
-
-      // Check if phone number already exists
-      const existingPhone = allStaff.find(s => s.phone === staffData.phone);
-      if (existingPhone) {
-        toast({
-          title: "Registration failed",
-          description: `Phone number "${staffData.phone}" is already registered to ${existingPhone.fullName}. Please use a different phone number.`,
-          variant: "destructive",
-        });
-        return null;
-      }
-
-      const newStaff = await StaffDB.create(staffData);
-      console.log('Staff created successfully:', newStaff.fullName);
-      
-      // Refresh the entire staff list to ensure consistency
-      await loadStaff();
-      
-      toast({
-        title: "Registration successful",
-        description: `${staffData.fullName} has been registered successfully`,
-      });
-      
-      return newStaff;
+      return null;
     } catch (err) {
-      const errorMessage = 'Failed to create staff member';
+      const errorMessage = err instanceof Error ? err.message : 'Failed to create staff member';
       setError(errorMessage);
       console.error('useStaff - createStaff error:', err);
-      toast({
-        title: "Registration failed",
-        description: `${errorMessage}. Please check the form data and try again.`,
-        variant: "destructive",
-      });
+      
+      if (errorMessage.includes('already registered')) {
+        toast({
+          title: "Registration failed",
+          description: errorMessage,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Registration failed",
+          description: `${errorMessage}. Please check the form data and try again.`,
+          variant: "destructive",
+        });
+      }
       return null;
     }
   }, [toast, loadStaff]);
@@ -122,7 +85,7 @@ export function useStaff() {
   // Update staff member
   const updateStaff = useCallback(async (id: string, updates: Partial<Staff>) => {
     try {
-      const updatedStaff = await StaffDB.update(id, updates);
+      const updatedStaff = await StaffOperations.updateStaff(id, updates);
       if (updatedStaff) {
         // Refresh the entire staff list to ensure consistency
         await loadStaff();
@@ -152,7 +115,7 @@ export function useStaff() {
   const deleteStaff = useCallback(async (id: string) => {
     try {
       const staffToDelete = staff.find(s => s.id === id);
-      const success = await StaffDB.delete(id);
+      const success = await StaffOperations.deleteStaff(id);
       
       if (success) {
         // Refresh the entire staff list to ensure consistency
@@ -181,22 +144,22 @@ export function useStaff() {
 
   // Get staff by ID
   const getStaffById = useCallback((id: string): Staff | null => {
-    return staff.find(s => s.id === id) || null;
+    return StaffValidation.getStaffById(staff, id);
   }, [staff]);
 
   // Get staff by staff ID
   const getStaffByStaffId = useCallback((staffId: string): Staff | null => {
-    return staff.find(s => s.staffId === staffId) || null;
+    return StaffValidation.getStaffByStaffId(staff, staffId);
   }, [staff]);
 
   // Toggle staff status
   const toggleStaffStatus = useCallback(async (id: string) => {
-    const staffMember = staff.find(s => s.id === id);
-    if (staffMember) {
-      return await updateStaff(id, { isActive: !staffMember.isActive });
+    const updatedStaff = await StaffOperations.toggleStaffStatus(id, staff);
+    if (updatedStaff) {
+      await loadStaff();
     }
-    return null;
-  }, [staff, updateStaff]);
+    return updatedStaff;
+  }, [staff, loadStaff]);
 
   // Refresh staff data
   const refreshStaff = useCallback(() => {
