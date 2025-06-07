@@ -37,7 +37,7 @@ export function CompactLogin() {
       if (success) {
         toast({
           title: "Login successful",
-          description: "Welcome to the admin dashboard",
+          description: "Welcome to Al'asr Comprehensive Academy",
         });
         navigate('/overview');
       } else {

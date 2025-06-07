@@ -23,7 +23,7 @@ export function LoginForm() {
       if (success) {
         toast({
           title: "Login successful",
-          description: "Welcome to Greater Height Academy Attendance Platform",
+          description: "Welcome to Al'asr Comprehensive Academy Attendance Platform",
         });
       } else {
         toast({
@@ -48,9 +48,9 @@ export function LoginForm() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="mx-auto w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mb-4">
-            <span className="text-white font-bold text-xl">GH</span>
+            <span className="text-white font-bold text-xl">AA</span>
           </div>
-          <CardTitle className="text-2xl font-bold">Greater Height Academy</CardTitle>
+          <CardTitle className="text-2xl font-bold">Al'asr Comprehensive Academy</CardTitle>
           <CardDescription>Attendance Management Platform</CardDescription>
         </CardHeader>
         <CardContent>

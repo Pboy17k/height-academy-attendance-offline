@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { StaffDB, Staff } from '@/lib/db';
 import { useToast } from '@/hooks/use-toast';
@@ -56,17 +55,40 @@ export function useStaff() {
     }
   }, [toast]);
 
-  // Create new staff member with improved persistence
+  // Create new staff member with duplicate checking and specific error messages
   const createStaff = useCallback(async (staffData: Omit<Staff, 'id' | 'createdAt'>) => {
     try {
       console.log('Creating new staff member:', staffData.fullName);
       
       // Check if staff ID already exists
-      const existingStaff = await StaffDB.getByStaffId(staffData.staffId);
-      if (existingStaff) {
+      const existingStaffId = await StaffDB.getByStaffId(staffData.staffId);
+      if (existingStaffId) {
         toast({
-          title: "Staff ID exists",
-          description: "This staff ID is already registered",
+          title: "Registration failed",
+          description: `Staff ID "${staffData.staffId}" is already registered. Please use a different staff ID.`,
+          variant: "destructive",
+        });
+        return null;
+      }
+
+      // Check if email already exists
+      const allStaff = await StaffDB.getAll();
+      const existingEmail = allStaff.find(s => s.email.toLowerCase() === staffData.email.toLowerCase());
+      if (existingEmail) {
+        toast({
+          title: "Registration failed", 
+          description: `Email "${staffData.email}" is already registered to ${existingEmail.fullName}. Please use a different email address.`,
+          variant: "destructive",
+        });
+        return null;
+      }
+
+      // Check if phone number already exists
+      const existingPhone = allStaff.find(s => s.phone === staffData.phone);
+      if (existingPhone) {
+        toast({
+          title: "Registration failed",
+          description: `Phone number "${staffData.phone}" is already registered to ${existingPhone.fullName}. Please use a different phone number.`,
           variant: "destructive",
         });
         return null;
@@ -90,7 +112,7 @@ export function useStaff() {
       console.error('useStaff - createStaff error:', err);
       toast({
         title: "Registration failed",
-        description: errorMessage,
+        description: `${errorMessage}. Please check the form data and try again.`,
         variant: "destructive",
       });
       return null;
