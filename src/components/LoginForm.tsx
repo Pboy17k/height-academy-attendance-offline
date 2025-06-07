@@ -47,8 +47,12 @@ export function LoginForm() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <div className="mx-auto w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mb-4">
-            <span className="text-white font-bold text-xl">AA</span>
+          <div className="mx-auto mb-4">
+            <img 
+              src="/lovable-uploads/fa512d41-576b-43a9-88ba-aaa4123bc20a.png" 
+              alt="Al'asr Comprehensive Academy Logo" 
+              className="h-20 w-20 mx-auto object-contain mb-2"
+            />
           </div>
           <CardTitle className="text-2xl font-bold">Al'asr Comprehensive Academy</CardTitle>
           <CardDescription>Attendance Management Platform</CardDescription>
