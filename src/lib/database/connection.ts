@@ -1,99 +1,74 @@
 
-import { openDB, IDBPDatabase } from 'idb';
+import { openDB, DBSchema, IDBPDatabase } from 'idb';
 import { AttendanceSystemDB } from './types';
-import { LocalStorageBackup } from '../storage';
 
-// Database instance
-let dbInstance: IDBPDatabase<AttendanceSystemDB> | null = null;
+let db: IDBPDatabase<AttendanceSystemDB> | null = null;
 
-// Initialize database with proper error handling and persistence
 export async function initDB(): Promise<IDBPDatabase<AttendanceSystemDB>> {
+  if (db) return db;
+
   try {
-    if (dbInstance) {
-      return dbInstance;
-    }
-
-    dbInstance = await openDB<AttendanceSystemDB>('AlasrAcademyDB', 2, {
-      upgrade(db, oldVersion, newVersion, transaction) {
-        console.log(`Upgrading database from version ${oldVersion} to ${newVersion}`);
-        
-        // Staff store
-        if (!db.objectStoreNames.contains('staff')) {
-          const staffStore = db.createObjectStore('staff', { keyPath: 'id' });
+    db = await openDB<AttendanceSystemDB>('AttendanceSystemDB', 1, {
+      upgrade(database) {
+        // Create staff store
+        if (!database.objectStoreNames.contains('staff')) {
+          const staffStore = database.createObjectStore('staff', { keyPath: 'id' });
           staffStore.createIndex('by-staffId', 'staffId', { unique: true });
-          staffStore.createIndex('by-email', 'email', { unique: true });
+          staffStore.createIndex('by-email', 'email', { unique: false });
         }
 
-        // Attendance store
-        if (!db.objectStoreNames.contains('attendance')) {
-          const attendanceStore = db.createObjectStore('attendance', { keyPath: 'id' });
-          attendanceStore.createIndex('by-staffId', 'staffId');
-          attendanceStore.createIndex('by-date', 'timestamp');
-          attendanceStore.createIndex('by-timestamp', 'timestamp');
+        // Create attendance store
+        if (!database.objectStoreNames.contains('attendance')) {
+          const attendanceStore = database.createObjectStore('attendance', { keyPath: 'id' });
+          attendanceStore.createIndex('by-staffId', 'staffId', { unique: false });
+          attendanceStore.createIndex('by-date', 'timestamp', { unique: false });
+          attendanceStore.createIndex('by-timestamp', 'timestamp', { unique: false });
         }
 
-        // Admin store
-        if (!db.objectStoreNames.contains('admin')) {
-          const adminStore = db.createObjectStore('admin', { keyPath: 'id' });
+        // Create admin store
+        if (!database.objectStoreNames.contains('admin')) {
+          const adminStore = database.createObjectStore('admin', { keyPath: 'id' });
           adminStore.createIndex('by-username', 'username', { unique: true });
         }
 
-        // Settings store
-        if (!db.objectStoreNames.contains('settings')) {
-          db.createObjectStore('settings', { keyPath: 'id' });
+        // Create settings store
+        if (!database.objectStoreNames.contains('settings')) {
+          database.createObjectStore('settings', { keyPath: 'id' });
         }
       },
-      blocked() {
-        console.warn('Database upgrade blocked');
-      },
-      blocking() {
-        console.warn('Database is blocking a newer version');
-      },
-      terminated() {
-        console.warn('Database connection terminated');
-        dbInstance = null;
-      }
     });
 
     console.log('IndexedDB initialized successfully');
-    return dbInstance;
+    return db;
   } catch (error) {
     console.error('Failed to initialize IndexedDB:', error);
-    throw new Error('Database initialization failed');
+    throw new Error('Failed to initialize database');
   }
 }
 
-// Get database instance
 export async function getDB(): Promise<IDBPDatabase<AttendanceSystemDB>> {
-  if (!dbInstance) {
-    return await initDB();
+  if (!db) {
+    db = await initDB();
   }
-  return dbInstance;
+  return db;
 }
 
-// Clear all sample data
 export async function clearAllSampleData(): Promise<void> {
   try {
-    const db = await getDB();
+    const database = await getDB();
     
-    console.log('Manually clearing all sample data...');
-    
-    // Clear all staff data
-    const staffTransaction = db.transaction('staff', 'readwrite');
-    await staffTransaction.objectStore('staff').clear();
-    await staffTransaction.done;
-    
-    // Clear all attendance data
-    const attendanceTransaction = db.transaction('attendance', 'readwrite');
-    await attendanceTransaction.objectStore('attendance').clear();
-    await attendanceTransaction.done;
+    // Clear all stores
+    const tx = database.transaction(['staff', 'attendance', 'admin', 'settings'], 'readwrite');
+    await Promise.all([
+      tx.objectStore('staff').clear(),
+      tx.objectStore('attendance').clear(),
+      tx.objectStore('admin').clear(),
+      tx.objectStore('settings').clear(),
+    ]);
     
     console.log('All sample data cleared from IndexedDB');
-    
-    // Clear localStorage backups
-    LocalStorageBackup.clearAllBackups();
-    
   } catch (error) {
     console.error('Failed to clear sample data:', error);
+    throw new Error('Failed to clear sample data');
   }
 }

@@ -1,6 +1,6 @@
 
-// Re-export everything from the new db.ts file for backward compatibility
-export * from './db';
+// Re-export everything from the new database/index file for backward compatibility
+export * from './database/index';
 import { 
   initializeDefaultAdmin as initDefault,
   StaffDB,
@@ -11,7 +11,7 @@ import {
   AttendanceRecord,
   Admin,
   AppSettings
-} from './db';
+} from './database/index';
 
 // Legacy DatabaseService class for backward compatibility
 export class DatabaseService {
