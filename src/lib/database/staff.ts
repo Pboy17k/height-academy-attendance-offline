@@ -15,18 +15,18 @@ export class StaffDB {
       };
       
       await db.add('staff', newStaff);
-      console.log('Staff created successfully in IndexedDB:', newStaff.fullName);
+      console.log('✅ Staff created and saved to IndexedDB:', newStaff.fullName);
       
       // Mark that user has modified data
       LocalStorageBackup.setUserDataModified();
       
-      // Backup to localStorage immediately
+      // Create backup immediately
       const allStaff = await this.getAll();
       await LocalStorageBackup.backupStaff(allStaff);
       
       return newStaff;
     } catch (error) {
-      console.error('Failed to create staff in IndexedDB:', error);
+      console.error('❌ Failed to create staff in IndexedDB:', error);
       throw new Error('Failed to create staff member');
     }
   }
@@ -37,19 +37,21 @@ export class StaffDB {
       const staff = await db.getAll('staff');
       const sortedStaff = staff.sort((a, b) => a.fullName.localeCompare(b.fullName));
       
-      console.log('Staff loaded from IndexedDB:', sortedStaff.length, 'members');
+      console.log('📋 Staff loaded from IndexedDB:', sortedStaff.length, 'members');
       
-      // Backup to localStorage whenever we fetch
-      await LocalStorageBackup.backupStaff(sortedStaff);
+      // Always backup to localStorage when loading
+      if (sortedStaff.length > 0) {
+        await LocalStorageBackup.backupStaff(sortedStaff);
+      }
       
       return sortedStaff;
     } catch (error) {
-      console.error('Failed to get all staff from IndexedDB:', error);
+      console.error('❌ Failed to get staff from IndexedDB:', error);
       
       // Fallback to localStorage if IndexedDB fails
-      console.log('Attempting to load staff from localStorage backup...');
+      console.log('🔄 Attempting to load staff from localStorage backup...');
       const backup = await LocalStorageBackup.getStaffBackup();
-      console.log('Loaded from localStorage backup:', backup.length, 'staff members');
+      console.log('📦 Loaded from localStorage backup:', backup.length, 'staff members');
       return backup.sort((a, b) => a.fullName.localeCompare(b.fullName));
     }
   }

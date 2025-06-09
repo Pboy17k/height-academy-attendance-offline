@@ -10,11 +10,14 @@ export async function initDB(): Promise<IDBPDatabase<AttendanceSystemDB>> {
   try {
     db = await openDB<AttendanceSystemDB>('AttendanceSystemDB', 1, {
       upgrade(database) {
+        console.log('Setting up database schema...');
+        
         // Create staff store
         if (!database.objectStoreNames.contains('staff')) {
           const staffStore = database.createObjectStore('staff', { keyPath: 'id' });
           staffStore.createIndex('by-staffId', 'staffId', { unique: true });
           staffStore.createIndex('by-email', 'email', { unique: false });
+          console.log('Staff store created');
         }
 
         // Create attendance store
@@ -23,22 +26,25 @@ export async function initDB(): Promise<IDBPDatabase<AttendanceSystemDB>> {
           attendanceStore.createIndex('by-staffId', 'staffId', { unique: false });
           attendanceStore.createIndex('by-date', 'timestamp', { unique: false });
           attendanceStore.createIndex('by-timestamp', 'timestamp', { unique: false });
+          console.log('Attendance store created');
         }
 
         // Create admin store
         if (!database.objectStoreNames.contains('admin')) {
           const adminStore = database.createObjectStore('admin', { keyPath: 'id' });
           adminStore.createIndex('by-username', 'username', { unique: true });
+          console.log('Admin store created');
         }
 
         // Create settings store
         if (!database.objectStoreNames.contains('settings')) {
           database.createObjectStore('settings', { keyPath: 'id' });
+          console.log('Settings store created');
         }
       },
     });
 
-    console.log('IndexedDB initialized successfully');
+    console.log('IndexedDB initialized successfully - existing data preserved');
     return db;
   } catch (error) {
     console.error('Failed to initialize IndexedDB:', error);
@@ -53,22 +59,4 @@ export async function getDB(): Promise<IDBPDatabase<AttendanceSystemDB>> {
   return db;
 }
 
-export async function clearAllSampleData(): Promise<void> {
-  try {
-    const database = await getDB();
-    
-    // Clear all stores
-    const tx = database.transaction(['staff', 'attendance', 'admin', 'settings'], 'readwrite');
-    await Promise.all([
-      tx.objectStore('staff').clear(),
-      tx.objectStore('attendance').clear(),
-      tx.objectStore('admin').clear(),
-      tx.objectStore('settings').clear(),
-    ]);
-    
-    console.log('All sample data cleared from IndexedDB');
-  } catch (error) {
-    console.error('Failed to clear sample data:', error);
-    throw new Error('Failed to clear sample data');
-  }
-}
+// REMOVED the clearAllSampleData function entirely to prevent accidental data loss

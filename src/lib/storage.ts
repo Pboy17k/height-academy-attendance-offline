@@ -1,11 +1,10 @@
-
 import { EnhancedStorageService } from './enhancedStorage';
 
 // Local storage utilities for backup persistence and user data tracking
 const STORAGE_KEYS = {
-  STAFF: 'alasr_academy_staff',
-  ATTENDANCE: 'alasr_academy_attendance',
-  SETTINGS: 'alasr_academy_settings',
+  STAFF: 'alasr_academy_staff_backup',
+  ATTENDANCE: 'alasr_academy_attendance_backup',
+  SETTINGS: 'alasr_academy_settings_backup',
   USER_DATA_FLAG: 'alasr_academy_user_data_modified'
 } as const;
 
@@ -23,7 +22,7 @@ export class LocalStorageBackup {
   static setUserDataModified(): void {
     try {
       localStorage.setItem(STORAGE_KEYS.USER_DATA_FLAG, 'true');
-      console.log('User data modification flag set - data will persist across sessions');
+      console.log('🔒 Data persistence flag set - data will be preserved');
     } catch (error) {
       console.error('Failed to set user data flag:', error);
     }
@@ -45,30 +44,27 @@ export class LocalStorageBackup {
       const backupData = {
         staff,
         timestamp,
-        count: staff.length
+        count: staff.length,
+        version: '2.0'
       };
 
-      // Traditional localStorage backup (for compatibility)
+      // Primary backup to localStorage
       localStorage.setItem(STORAGE_KEYS.STAFF, JSON.stringify(backupData));
       
       // Enhanced backup with LocalForage
       await EnhancedStorageService.createBackup(staff);
       
-      console.log('Staff data backed up to localStorage and enhanced storage:', staff.length, 'members at', timestamp);
+      console.log('💾 Staff data backed up successfully:', staff.length, 'members');
     } catch (error) {
-      console.error('Failed to backup staff:', error);
+      console.error('❌ Failed to backup staff:', error);
       // Fallback to localStorage only
       try {
         const timestamp = new Date().toISOString();
-        const backupData = {
-          staff,
-          timestamp,
-          count: staff.length
-        };
+        const backupData = { staff, timestamp, count: staff.length };
         localStorage.setItem(STORAGE_KEYS.STAFF, JSON.stringify(backupData));
-        console.log('Staff data backed up to localStorage only (fallback)');
+        console.log('💾 Staff data backed up to localStorage (fallback)');
       } catch (fallbackError) {
-        console.error('Failed to backup staff (even fallback):', fallbackError);
+        console.error('❌ Complete backup failure:', fallbackError);
       }
     }
   }
@@ -78,24 +74,24 @@ export class LocalStorageBackup {
       // First try enhanced storage
       const enhancedBackup = await EnhancedStorageService.restoreFromBackup();
       if (enhancedBackup && enhancedBackup.staff.length > 0) {
-        console.log('Staff backup loaded from enhanced storage:', enhancedBackup.staff.length, 'members');
+        console.log('📦 Staff loaded from enhanced storage:', enhancedBackup.staff.length, 'members');
         return enhancedBackup.staff;
       }
 
       // Fallback to localStorage
       const data = localStorage.getItem(STORAGE_KEYS.STAFF);
       if (!data) {
-        console.log('No staff backup found in any storage');
+        console.log('📦 No staff backup found');
         return [];
       }
       
       const parsed = JSON.parse(data);
       const staff = Array.isArray(parsed) ? parsed : (parsed.staff || []);
       
-      console.log('Staff backup loaded from localStorage (fallback):', staff.length, 'members');
+      console.log('📦 Staff loaded from localStorage backup:', staff.length, 'members');
       return staff;
     } catch (error) {
-      console.error('Failed to get staff backup:', error);
+      console.error('❌ Failed to get staff backup:', error);
       return [];
     }
   }
