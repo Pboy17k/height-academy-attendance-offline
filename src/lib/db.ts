@@ -191,7 +191,7 @@ export class StaffDB {
       
       // Backup to localStorage immediately
       const allStaff = await this.getAll();
-      LocalStorageBackup.backupStaff(allStaff);
+      await LocalStorageBackup.backupStaff(allStaff);
       
       return newStaff;
     } catch (error) {
@@ -209,7 +209,7 @@ export class StaffDB {
       console.log('Staff loaded from IndexedDB:', sortedStaff.length, 'members');
       
       // Backup to localStorage whenever we fetch
-      LocalStorageBackup.backupStaff(sortedStaff);
+      await LocalStorageBackup.backupStaff(sortedStaff);
       
       return sortedStaff;
     } catch (error) {
@@ -217,7 +217,7 @@ export class StaffDB {
       
       // Fallback to localStorage if IndexedDB fails
       console.log('Attempting to load staff from localStorage backup...');
-      const backup = LocalStorageBackup.getStaffBackup();
+      const backup = await LocalStorageBackup.getStaffBackup();
       console.log('Loaded from localStorage backup:', backup.length, 'staff members');
       return backup.sort((a, b) => a.fullName.localeCompare(b.fullName));
     }
@@ -232,7 +232,7 @@ export class StaffDB {
       console.error('Failed to get staff by ID from IndexedDB:', error);
       
       // Fallback to localStorage
-      const backup = LocalStorageBackup.getStaffBackup();
+      const backup = await LocalStorageBackup.getStaffBackup();
       return backup.find(s => s.id === id) || null;
     }
   }
@@ -246,7 +246,7 @@ export class StaffDB {
       console.error('Failed to get staff by staffId from IndexedDB:', error);
       
       // Fallback to localStorage
-      const backup = LocalStorageBackup.getStaffBackup();
+      const backup = await LocalStorageBackup.getStaffBackup();
       return backup.find(s => s.staffId === staffId) || null;
     }
   }
@@ -266,7 +266,7 @@ export class StaffDB {
       
       // Backup to localStorage
       const allStaff = await this.getAll();
-      LocalStorageBackup.backupStaff(allStaff);
+      await LocalStorageBackup.backupStaff(allStaff);
       
       return updated;
     } catch (error) {
@@ -294,7 +294,7 @@ export class StaffDB {
       
       // Update localStorage backup
       const allStaff = await this.getAll();
-      LocalStorageBackup.backupStaff(allStaff);
+      await LocalStorageBackup.backupStaff(allStaff);
       
       return true;
     } catch (error) {
