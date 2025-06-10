@@ -38,10 +38,15 @@ export function HomeAttendance() {
       try {
         await BiometricService.initialize();
         await FingerprintMatcher.initialize();
-        setBiometricConnected(BiometricService.isDeviceConnected());
+        const connected = BiometricService.isDeviceConnected();
+        setBiometricConnected(connected);
         
-        if (BiometricService.isDeviceConnected()) {
+        if (connected) {
           console.log('✅ Biometric system ready for real-time scanning');
+          toast({
+            title: "Device Connected!",
+            description: "SecureGen Hamster is ready for real-time fingerprint scanning",
+          });
         }
       } catch (error) {
         console.error('Failed to initialize biometric system:', error);
@@ -49,6 +54,26 @@ export function HomeAttendance() {
     };
 
     initializeBiometric();
+
+    // Listen for connection changes
+    const handleConnectionChange = (connected: boolean) => {
+      setBiometricConnected(connected);
+      if (connected) {
+        setDeviceError(null);
+        toast({
+          title: "Device Connected!",
+          description: "SecureGen Hamster is now ready for real-time fingerprint scanning",
+        });
+      } else {
+        toast({
+          title: "Device Disconnected",
+          description: "SecureGen Hamster has been disconnected",
+          variant: "destructive",
+        });
+      }
+    };
+
+    BiometricService.onConnectionChange(handleConnectionChange);
 
     // Listen for real fingerprint scans only
     const handleFingerprintDetected = async (reading: any) => {
@@ -125,6 +150,7 @@ export function HomeAttendance() {
 
     return () => {
       BiometricService.removeListener(handleFingerprintDetected);
+      BiometricService.removeConnectionListener(handleConnectionChange);
     };
   }, [isScanning, getLatestAttendanceForStaff, getNextAttendanceType, recordAttendance, toast]);
 
@@ -132,14 +158,7 @@ export function HomeAttendance() {
     try {
       setDeviceError(null);
       await BiometricService.requestDeviceAccess();
-      setBiometricConnected(BiometricService.isDeviceConnected());
-      
-      if (BiometricService.isDeviceConnected()) {
-        toast({
-          title: "Device Connected!",
-          description: "SecureGen Hamster is now ready for real-time fingerprint scanning",
-        });
-      }
+      // Connection status will be updated via the connection listener
     } catch (error: any) {
       setDeviceError(error.message || 'Failed to connect to biometric device');
       toast({

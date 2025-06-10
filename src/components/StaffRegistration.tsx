@@ -49,6 +49,8 @@ export function StaffRegistration() {
   const [fingerprintTemplate, setFingerprintTemplate] = useState<string>('');
   const [isEnrolling, setIsEnrolling] = useState(false);
   const [biometricConnected, setBiometricConnected] = useState(false);
+  const [fingerprintQuality, setFingerprintQuality] = useState<number>(0);
+  const [scanningStatus, setScanningStatus] = useState<string>('');
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   
@@ -61,14 +63,32 @@ export function StaffRegistration() {
       try {
         await BiometricService.initialize();
         await FingerprintMatcher.initialize();
-        setBiometricConnected(BiometricService.isDeviceConnected());
+        const connected = BiometricService.isDeviceConnected();
+        setBiometricConnected(connected);
       } catch (error) {
         console.error('Failed to initialize biometric system:', error);
       }
     };
 
     initializeBiometric();
-  }, []);
+
+    // Listen for connection changes
+    const handleConnectionChange = (connected: boolean) => {
+      setBiometricConnected(connected);
+      if (connected) {
+        toast({
+          title: "Device Connected!",
+          description: "SecureGen Hamster is ready for enrollment",
+        });
+      }
+    };
+
+    BiometricService.onConnectionChange(handleConnectionChange);
+
+    return () => {
+      BiometricService.removeConnectionListener(handleConnectionChange);
+    };
+  }, [toast]);
 
   const generateStaffId = () => {
     const prefix = 'STF';
@@ -140,33 +160,43 @@ export function StaffRegistration() {
     }
 
     setIsEnrolling(true);
+    setFingerprintQuality(0);
+    setScanningStatus('Place your finger on the scanner...');
     
     try {
       toast({
-        title: "Place Your Finger",
-        description: "Place your finger on the SecureGen Hamster scanner...",
+        title: "Fingerprint Enrollment Started",
+        description: "Place your finger firmly on the SecureGen Hamster scanner...",
       });
 
-      // Listen for fingerprint reading
+      // Listen for real-time fingerprint readings
       const handleFingerprintReading = (reading: any) => {
-        if (reading.quality > 70) {
+        console.log('👆 Real-time fingerprint reading detected:', reading.quality);
+        setFingerprintQuality(reading.quality);
+        
+        if (reading.quality > 80) {
+          setScanningStatus(`High quality scan detected (${reading.quality}%)!`);
+        } else if (reading.quality > 60) {
+          setScanningStatus(`Good scan detected (${reading.quality}%). Keep finger steady...`);
+        } else if (reading.quality > 40) {
+          setScanningStatus(`Scanning... (${reading.quality}%). Press finger firmly.`);
+        } else {
+          setScanningStatus('Place finger firmly on the scanner...');
+        }
+
+        if (reading.quality > 75) {
           setFingerprintTemplate(reading.template);
           setFingerprintEnrolled(true);
           setIsEnrolling(false);
+          setScanningStatus('Enrollment successful!');
           
           toast({
-            title: "Fingerprint Enrolled!",
-            description: "Your fingerprint has been successfully captured.",
+            title: "Fingerprint Enrolled Successfully!",
+            description: `High quality fingerprint captured (${reading.quality}% quality)`,
           });
           
           // Remove listener after successful enrollment
           BiometricService.removeListener(handleFingerprintReading);
-        } else {
-          toast({
-            title: "Low Quality Scan",
-            description: "Please place your finger firmly on the scanner and try again.",
-            variant: "destructive",
-          });
         }
       };
 
@@ -176,6 +206,8 @@ export function StaffRegistration() {
       setTimeout(() => {
         if (isEnrolling) {
           setIsEnrolling(false);
+          setScanningStatus('');
+          setFingerprintQuality(0);
           BiometricService.removeListener(handleFingerprintReading);
           toast({
             title: "Enrollment Timeout",
@@ -188,6 +220,8 @@ export function StaffRegistration() {
     } catch (error) {
       console.error('Fingerprint enrollment failed:', error);
       setIsEnrolling(false);
+      setScanningStatus('');
+      setFingerprintQuality(0);
       toast({
         title: "Enrollment Failed",
         description: "Failed to enroll fingerprint. Please try again.",
@@ -237,6 +271,8 @@ export function StaffRegistration() {
         setPhoto('');
         setFingerprintEnrolled(false);
         setFingerprintTemplate('');
+        setFingerprintQuality(0);
+        setScanningStatus('');
         
         toast({
           title: "Registration Successful!",
@@ -434,6 +470,24 @@ export function StaffRegistration() {
                   )}
                 </div>
                 
+                {/* Real-time scanning feedback */}
+                {isEnrolling && fingerprintQuality > 0 && (
+                  <div className="space-y-2">
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div 
+                        className={`h-2 rounded-full transition-all duration-300 ${
+                          fingerprintQuality > 75 ? 'bg-green-500' :
+                          fingerprintQuality > 50 ? 'bg-yellow-500' : 'bg-red-500'
+                        }`}
+                        style={{ width: `${fingerprintQuality}%` }}
+                      ></div>
+                    </div>
+                    <p className="text-sm text-blue-600 dark:text-blue-400">
+                      Quality: {fingerprintQuality}%
+                    </p>
+                  </div>
+                )}
+                
                 {fingerprintEnrolled ? (
                   <div className="text-green-600 dark:text-green-400">
                     <p className="font-medium">✓ Fingerprint Enrolled Successfully</p>
@@ -455,7 +509,7 @@ export function StaffRegistration() {
                       ) : (
                         <>
                           <Fingerprint className="h-4 w-4 mr-2" />
-                          {biometricConnected ? 'Enroll Fingerprint' : 'Connect Device First'}
+                          {biometricConnected ? 'Start Enrollment' : 'Connect Device First'}
                         </>
                       )}
                     </Button>
@@ -464,9 +518,9 @@ export function StaffRegistration() {
                         SecureGen Hamster device not connected
                       </p>
                     )}
-                    {isEnrolling && (
+                    {scanningStatus && (
                       <p className="text-sm text-blue-600 dark:text-blue-400">
-                        Place your finger on the scanner and hold still...
+                        {scanningStatus}
                       </p>
                     )}
                   </div>

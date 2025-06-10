@@ -1,3 +1,4 @@
+
 interface BiometricDevice {
   id: string;
   name: string;
@@ -21,7 +22,9 @@ interface BiometricMatch {
 export class BiometricService {
   private static devices: BiometricDevice[] = [];
   private static listeners: ((reading: BiometricReading) => void)[] = [];
+  private static connectionListeners: ((connected: boolean) => void)[] = [];
   private static isInitialized = false;
+  private static connectedUSBDevices: USBDevice[] = [];
 
   static async initialize(): Promise<boolean> {
     try {
@@ -63,21 +66,18 @@ export class BiometricService {
         }
       }
       
-      // If no devices found, try to request access automatically
-      if (this.devices.length === 0) {
-        console.log('📱 No connected devices, attempting auto-connection...');
-        await this.requestDeviceAccess();
-      }
+      console.log(`✅ Auto-connection complete. Connected devices: ${this.devices.length}`);
     } catch (error) {
-      console.log('Auto-connect failed, user will need to manually connect:', error);
+      console.log('Auto-connect failed, manual connection will be required:', error);
     }
   }
 
   static isCompatibleDevice(device: USBDevice): boolean {
-    // Known SecureGen vendor IDs and product IDs
+    // Known SecureGen vendor IDs and product IDs - expanded list
     const compatibleDevices = [
-      { vendorId: 0x2109, name: 'SecureGen' }, // SecureGen Hamster
+      { vendorId: 0x2109, name: 'SecureGen Hamster' }, // Primary SecureGen Hamster ID
       { vendorId: 0x1162, name: 'SecureGen' }, // Alternative SecureGen ID
+      { vendorId: 0x16d1, name: 'SecureGen' }, // Another SecureGen variant
       { vendorId: 0x27c6, name: 'Goodix' },
       { vendorId: 0x138a, name: 'Validity Sensors' },
       { vendorId: 0x06cb, name: 'Synaptics' },
@@ -86,7 +86,11 @@ export class BiometricService {
       { vendorId: 0x1c7a, name: 'LighTuning' },
     ];
 
-    return compatibleDevices.some(compatible => compatible.vendorId === device.vendorId);
+    const isCompatible = compatibleDevices.some(compatible => compatible.vendorId === device.vendorId);
+    if (isCompatible) {
+      console.log(`✅ Compatible device found: ${device.productName || 'Unknown'} (${device.vendorId}:${device.productId})`);
+    }
+    return isCompatible;
   }
 
   static async requestDeviceAccess(): Promise<void> {
@@ -97,8 +101,9 @@ export class BiometricService {
 
       // Enhanced filters including SecureGen devices
       const filters = [
-        { vendorId: 0x2109 }, // SecureGen Hamster
+        { vendorId: 0x2109 }, // SecureGen Hamster (primary)
         { vendorId: 0x1162 }, // Alternative SecureGen ID
+        { vendorId: 0x16d1 }, // Another SecureGen variant
         { vendorId: 0x27c6 }, // Goodix
         { vendorId: 0x138a }, // Validity Sensors
         { vendorId: 0x06cb }, // Synaptics
@@ -112,8 +117,11 @@ export class BiometricService {
       
       if (device) {
         const deviceName = device.productName || `SecureGen Device (${device.vendorId}:${device.productId})`;
-        console.log('📱 USB biometric device detected:', deviceName);
+        console.log('📱 USB biometric device selected:', deviceName);
         await this.addDevice(device);
+        
+        // Notify connection listeners
+        this.notifyConnectionListeners(true);
       }
     } catch (error: any) {
       if (error.name === 'NotFoundError') {
@@ -128,28 +136,40 @@ export class BiometricService {
 
   private static async addDevice(usbDevice: USBDevice): Promise<void> {
     try {
-      await usbDevice.open();
+      // Check if device is already connected
+      const existingDeviceIndex = this.connectedUSBDevices.findIndex(
+        d => d.vendorId === usbDevice.vendorId && d.productId === usbDevice.productId
+      );
+      
+      if (existingDeviceIndex === -1) {
+        await usbDevice.open();
+        this.connectedUSBDevices.push(usbDevice);
+      }
       
       const deviceName = usbDevice.productName || 
-        (usbDevice.vendorId === 0x2109 || usbDevice.vendorId === 0x1162 
+        (usbDevice.vendorId === 0x2109 || usbDevice.vendorId === 0x1162 || usbDevice.vendorId === 0x16d1
           ? 'SecureGen Hamster' 
           : `Device ${usbDevice.vendorId}:${usbDevice.productId}`);
       
+      const deviceId = `usb-${usbDevice.vendorId}-${usbDevice.productId}`;
       const device: BiometricDevice = {
-        id: `usb-${usbDevice.vendorId}-${usbDevice.productId}`,
+        id: deviceId,
         name: deviceName,
         type: 'fingerprint',
         connected: true
       };
 
-      // Remove existing device with same ID
+      // Remove existing device with same ID and add new one
       this.devices = this.devices.filter(d => d.id !== device.id);
       this.devices.push(device);
       
-      console.log('✅ Biometric device connected:', device.name);
+      console.log('✅ Biometric device connected and ready:', device.name);
       
       // Start listening for fingerprint data
       await this.listenToDevice(usbDevice, device);
+      
+      // Notify all connection listeners
+      this.notifyConnectionListeners(true);
       
     } catch (error) {
       console.error('Failed to add biometric device:', error);
@@ -190,7 +210,7 @@ export class BiometricService {
 
           // Only process high-quality readings
           if (reading.quality > 70) {
-            console.log('👆 Fingerprint detected with quality:', reading.quality);
+            console.log('👆 Real fingerprint detected with quality:', reading.quality);
             this.notifyListeners(reading);
           }
         }
@@ -240,12 +260,33 @@ export class BiometricService {
     }
   }
 
+  static onConnectionChange(callback: (connected: boolean) => void): void {
+    this.connectionListeners.push(callback);
+  }
+
+  static removeConnectionListener(callback: (connected: boolean) => void): void {
+    const index = this.connectionListeners.indexOf(callback);
+    if (index > -1) {
+      this.connectionListeners.splice(index, 1);
+    }
+  }
+
   private static notifyListeners(reading: BiometricReading): void {
     this.listeners.forEach(listener => {
       try {
         listener(reading);
       } catch (error) {
         console.error('Error in biometric listener:', error);
+      }
+    });
+  }
+
+  private static notifyConnectionListeners(connected: boolean): void {
+    this.connectionListeners.forEach(listener => {
+      try {
+        listener(connected);
+      } catch (error) {
+        console.error('Error in connection listener:', error);
       }
     });
   }
@@ -262,9 +303,16 @@ export class BiometricService {
 
     navigator.usb.addEventListener('disconnect', (event) => {
       console.log('🔌 USB device disconnected:', event.device.productName);
-      this.devices = this.devices.filter(device => 
-        device.id !== `usb-${event.device.vendorId}-${event.device.productId}`
+      const deviceId = `usb-${event.device.vendorId}-${event.device.productId}`;
+      this.devices = this.devices.filter(device => device.id !== deviceId);
+      
+      // Remove from connected USB devices
+      this.connectedUSBDevices = this.connectedUSBDevices.filter(
+        device => !(device.vendorId === event.device.vendorId && device.productId === event.device.productId)
       );
+      
+      // Notify disconnection
+      this.notifyConnectionListeners(this.isDeviceConnected());
     });
   }
 
