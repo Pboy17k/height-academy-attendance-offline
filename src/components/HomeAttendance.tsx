@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { DigitalClock } from '@/components/DigitalClock';
 import { CompactLogin } from '@/components/CompactLogin';
@@ -9,8 +9,10 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useTheme } from '@/contexts/ThemeContext';
-import { Sun, Moon, Fingerprint } from 'lucide-react';
+import { Sun, Moon, Fingerprint, Usb } from 'lucide-react';
 import { Staff, AttendanceRecord } from '@/lib/db';
+import { BiometricService } from '@/services/biometricService';
+import { FingerprintMatcher } from '@/services/fingerprintMatcher';
 
 export function HomeAttendance() {
   const { admin } = useAuth();
@@ -18,6 +20,8 @@ export function HomeAttendance() {
   const [currentStaff, setCurrentStaff] = useState<Staff | null>(null);
   const [lastAttendance, setLastAttendance] = useState<AttendanceRecord | null>(null);
   const [isScanning, setIsScanning] = useState(false);
+  const [biometricConnected, setBiometricConnected] = useState(false);
+  const [scanStatus, setScanStatus] = useState<'waiting' | 'scanning' | 'success' | 'error'>('waiting');
   
   const { staff } = useStaff();
   const { 
@@ -27,10 +31,99 @@ export function HomeAttendance() {
     getNextAttendanceType 
   } = useAttendance();
 
+  useEffect(() => {
+    // Check if biometric device is connected
+    setBiometricConnected(BiometricService.isDeviceConnected());
+
+    // Listen for fingerprint scans
+    const handleFingerprintDetected = async (reading: any) => {
+      if (isScanning) return; // Prevent multiple simultaneous scans
+      
+      setIsScanning(true);
+      setScanStatus('scanning');
+      
+      try {
+        console.log('👆 Processing fingerprint scan...');
+        
+        // Match fingerprint to staff member
+        const matchedStaff = await FingerprintMatcher.matchFingerprint(reading.template);
+        
+        if (matchedStaff) {
+          const lastRecord = await getLatestAttendanceForStaff(matchedStaff.id);
+          const nextType = getNextAttendanceType(lastRecord);
+          
+          const newRecord = await recordAttendance({
+            staffId: matchedStaff.id,
+            staffName: matchedStaff.fullName,
+            type: nextType,
+            timestamp: new Date(),
+            method: 'fingerprint'
+          });
+          
+          if (newRecord) {
+            setCurrentStaff(matchedStaff);
+            setLastAttendance(newRecord);
+            setScanStatus('success');
+            
+            // Clear display after 5 seconds
+            setTimeout(() => {
+              setCurrentStaff(null);
+              setLastAttendance(null);
+              setScanStatus('waiting');
+            }, 5000);
+          }
+        } else {
+          setScanStatus('error');
+          console.log('❌ Fingerprint not recognized');
+          
+          // Reset status after 3 seconds
+          setTimeout(() => {
+            setScanStatus('waiting');
+          }, 3000);
+        }
+      } catch (error) {
+        console.error('❌ Fingerprint processing failed:', error);
+        setScanStatus('error');
+        setTimeout(() => {
+          setScanStatus('waiting');
+        }, 3000);
+      } finally {
+        setIsScanning(false);
+      }
+    };
+
+    BiometricService.onFingerprintDetected(handleFingerprintDetected);
+
+    return () => {
+      BiometricService.removeListener(handleFingerprintDetected);
+    };
+  }, [isScanning, getLatestAttendanceForStaff, getNextAttendanceType, recordAttendance]);
+
+  const requestBiometricAccess = async () => {
+    try {
+      await BiometricService.requestDeviceAccess();
+      setBiometricConnected(BiometricService.isDeviceConnected());
+    } catch (error) {
+      console.error('Failed to request biometric access:', error);
+    }
+  };
+
   const simulateFingerprintScan = async () => {
-    setIsScanning(true);
+    if (isScanning) return;
     
-    setTimeout(async () => {
+    setIsScanning(true);
+    setScanStatus('scanning');
+    
+    // Use biometric device if available, otherwise simulate
+    const reading = biometricConnected 
+      ? await new Promise(resolve => {
+          // Real device reading will be handled by the listener
+          setTimeout(() => resolve(null), 2000);
+        })
+      : BiometricService.simulateFingerprintScan();
+    
+    if (!biometricConnected && reading) {
+      // Handle simulated reading
       try {
         if (staff.length > 0) {
           const randomStaff = staff[Math.floor(Math.random() * staff.length)];
@@ -49,28 +142,76 @@ export function HomeAttendance() {
           if (newRecord) {
             setCurrentStaff(randomStaff);
             setLastAttendance(newRecord);
+            setScanStatus('success');
             
             setTimeout(() => {
               setCurrentStaff(null);
               setLastAttendance(null);
+              setScanStatus('waiting');
             }, 5000);
           }
-          
-        } else {
-          console.warn('No staff found for fingerprint scan');
         }
       } catch (error) {
-        console.error('Fingerprint scan failed:', error);
-      } finally {
-        setIsScanning(false);
+        console.error('Simulation failed:', error);
+        setScanStatus('error');
+        setTimeout(() => {
+          setScanStatus('waiting');
+        }, 3000);
       }
-    }, 2000);
+    }
+    
+    setIsScanning(false);
   };
 
-  // Public attendance interface (no login required)
+  const getScannerStatus = () => {
+    switch (scanStatus) {
+      case 'scanning':
+        return {
+          text: 'Scanning Fingerprint...',
+          subtext: 'Verifying identity...',
+          color: 'text-blue-600',
+          bgColor: 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+        };
+      case 'success':
+        return {
+          text: 'Scan Successful!',
+          subtext: 'Welcome back!',
+          color: 'text-green-600',
+          bgColor: 'border-green-500 bg-green-50 dark:bg-green-900/20'
+        };
+      case 'error':
+        return {
+          text: 'Scan Failed',
+          subtext: 'Fingerprint not recognized',
+          color: 'text-red-600',
+          bgColor: 'border-red-500 bg-red-50 dark:bg-red-900/20'
+        };
+      default:
+        return {
+          text: biometricConnected ? 'Place Finger on Scanner' : 'Touch to Scan',
+          subtext: biometricConnected ? 'Hardware fingerprint scanner ready' : 'Simulation mode - place finger to check in/out',
+          color: 'text-blue-500 dark:text-blue-400',
+          bgColor: 'border-gray-300 dark:border-gray-600 hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20'
+        };
+    }
+  };
+
+  const status = getScannerStatus();
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
-      <header className="absolute top-4 right-4 z-10">
+      <header className="absolute top-4 right-4 z-10 flex space-x-2">
+        {!biometricConnected && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={requestBiometricAccess}
+            className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm"
+          >
+            <Usb className="h-4 w-4 mr-2" />
+            Connect Device
+          </Button>
+        )}
         <Button
           variant="outline"
           size="sm"
@@ -95,6 +236,11 @@ export function HomeAttendance() {
           <p className="text-sm text-gray-600 dark:text-gray-300">
             Attendance Management System
           </p>
+          {biometricConnected && (
+            <Badge variant="outline" className="text-xs mt-1 border-green-500 text-green-600">
+              🔗 Biometric Device Connected
+            </Badge>
+          )}
         </div>
       </div>
 
@@ -137,37 +283,23 @@ export function HomeAttendance() {
               ) : (
                 <div className="space-y-6">
                   <div
-                    className={`mx-auto w-48 h-48 rounded-full border-8 flex items-center justify-center cursor-pointer transition-all duration-300 ${
-                      isScanning
-                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 animate-pulse shadow-lg shadow-blue-500/50'
-                        : 'border-gray-300 dark:border-gray-600 hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20'
-                    }`}
+                    className={`mx-auto w-48 h-48 rounded-full border-8 flex items-center justify-center cursor-pointer transition-all duration-300 ${status.bgColor}`}
                     onClick={simulateFingerprintScan}
-                    style={{
-                      animation: isScanning 
-                        ? 'pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite' 
-                        : 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite'
-                    }}
                   >
                     <Fingerprint 
-                      className={`h-20 w-20 ${
-                        isScanning 
-                          ? 'text-blue-600 animate-pulse' 
-                          : 'text-blue-500 dark:text-blue-400'
-                      } transition-all duration-300`}
-                      style={{
-                        animation: !isScanning ? 'pulse 3s ease-in-out infinite' : undefined
-                      }}
+                      className={`h-20 w-20 ${status.color} transition-all duration-300 ${
+                        scanStatus === 'scanning' ? 'animate-pulse' : ''
+                      }`}
                     />
                   </div>
                   <div>
                     <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-                      {isScanning ? 'Scanning Fingerprint...' : 'Touch to Scan'}
+                      {status.text}
                     </h2>
                     <p className="text-gray-500 dark:text-gray-400 text-lg">
-                      {isScanning ? 'Verifying identity...' : 'Place your finger to check in or out'}
+                      {status.subtext}
                     </p>
-                    {!isScanning && (
+                    {scanStatus === 'waiting' && (
                       <div className="mt-4 flex items-center justify-center space-x-2 text-blue-500 dark:text-blue-400">
                         <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
                         <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
