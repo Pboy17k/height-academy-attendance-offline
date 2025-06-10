@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { DigitalClock } from '@/components/DigitalClock';
@@ -9,19 +8,22 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useTheme } from '@/contexts/ThemeContext';
-import { Sun, Moon, Fingerprint, Usb } from 'lucide-react';
+import { Sun, Moon, Fingerprint, Usb, AlertCircle } from 'lucide-react';
 import { Staff, AttendanceRecord } from '@/lib/db';
 import { BiometricService } from '@/services/biometricService';
 import { FingerprintMatcher } from '@/services/fingerprintMatcher';
+import { useToast } from '@/hooks/use-toast';
 
 export function HomeAttendance() {
   const { admin } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const { toast } = useToast();
   const [currentStaff, setCurrentStaff] = useState<Staff | null>(null);
   const [lastAttendance, setLastAttendance] = useState<AttendanceRecord | null>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [biometricConnected, setBiometricConnected] = useState(false);
   const [scanStatus, setScanStatus] = useState<'waiting' | 'scanning' | 'success' | 'error'>('waiting');
+  const [deviceError, setDeviceError] = useState<string | null>(null);
   
   const { staff } = useStaff();
   const { 
@@ -41,6 +43,7 @@ export function HomeAttendance() {
       
       setIsScanning(true);
       setScanStatus('scanning');
+      setDeviceError(null);
       
       try {
         console.log('👆 Processing fingerprint scan...');
@@ -101,10 +104,23 @@ export function HomeAttendance() {
 
   const requestBiometricAccess = async () => {
     try {
+      setDeviceError(null);
       await BiometricService.requestDeviceAccess();
       setBiometricConnected(BiometricService.isDeviceConnected());
-    } catch (error) {
-      console.error('Failed to request biometric access:', error);
+      
+      if (BiometricService.isDeviceConnected()) {
+        toast({
+          title: "Device Connected!",
+          description: "SecureGen Hamster is now ready for fingerprint scanning",
+        });
+      }
+    } catch (error: any) {
+      setDeviceError(error.message || 'Failed to connect to biometric device');
+      toast({
+        title: "Connection Failed",
+        description: error.message || 'Failed to connect to biometric device',
+        variant: "destructive",
+      });
     }
   };
 
@@ -189,7 +205,7 @@ export function HomeAttendance() {
       default:
         return {
           text: biometricConnected ? 'Place Finger on Scanner' : 'Touch to Scan',
-          subtext: biometricConnected ? 'Hardware fingerprint scanner ready' : 'Simulation mode - place finger to check in/out',
+          subtext: biometricConnected ? 'SecureGen Hamster ready' : 'Simulation mode - place finger to check in/out',
           color: 'text-blue-500 dark:text-blue-400',
           bgColor: 'border-gray-300 dark:border-gray-600 hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20'
         };
@@ -209,7 +225,7 @@ export function HomeAttendance() {
             className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm"
           >
             <Usb className="h-4 w-4 mr-2" />
-            Connect Device
+            Connect SecureGen
           </Button>
         )}
         <Button
@@ -236,13 +252,36 @@ export function HomeAttendance() {
           <p className="text-sm text-gray-600 dark:text-gray-300">
             Attendance Management System
           </p>
-          {biometricConnected && (
+          {biometricConnected ? (
             <Badge variant="outline" className="text-xs mt-1 border-green-500 text-green-600">
-              🔗 Biometric Device Connected
+              🔗 SecureGen Hamster Connected
+            </Badge>
+          ) : deviceError ? (
+            <Badge variant="outline" className="text-xs mt-1 border-red-500 text-red-600">
+              <AlertCircle className="h-3 w-3 mr-1" />
+              Device Error
+            </Badge>
+          ) : (
+            <Badge variant="outline" className="text-xs mt-1 border-orange-500 text-orange-600">
+              📱 Connect SecureGen Device
             </Badge>
           )}
         </div>
       </div>
+
+      {/* Error message for device issues */}
+      {deviceError && (
+        <div className="absolute top-20 left-6 right-6 z-10">
+          <Card className="bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800">
+            <CardContent className="p-4">
+              <div className="flex items-center space-x-2">
+                <AlertCircle className="h-5 w-5 text-red-600" />
+                <p className="text-sm text-red-800 dark:text-red-200">{deviceError}</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       <div className="flex flex-col lg:flex-row min-h-screen">
         {/* Attendance Station - 70% width */}

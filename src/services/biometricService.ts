@@ -1,4 +1,3 @@
-
 interface BiometricDevice {
   id: string;
   name: string;
@@ -37,6 +36,9 @@ export class BiometricService {
       // Start device monitoring
       await this.startDeviceMonitoring();
       
+      // Automatically try to connect to existing devices
+      await this.autoConnectDevices();
+      
       this.isInitialized = true;
       console.log('✅ Biometric service initialized successfully');
       return true;
@@ -46,14 +48,57 @@ export class BiometricService {
     }
   }
 
+  static async autoConnectDevices(): Promise<void> {
+    try {
+      if (!navigator.usb) return;
+      
+      // Get previously authorized devices
+      const devices = await navigator.usb.getDevices();
+      console.log('🔍 Found previously authorized USB devices:', devices.length);
+      
+      for (const device of devices) {
+        if (this.isCompatibleDevice(device)) {
+          console.log('🔗 Auto-connecting to:', device.productName || 'SecureGen Device');
+          await this.addDevice(device);
+        }
+      }
+      
+      // If no devices found, try to request access automatically
+      if (this.devices.length === 0) {
+        console.log('📱 No connected devices, attempting auto-connection...');
+        await this.requestDeviceAccess();
+      }
+    } catch (error) {
+      console.log('Auto-connect failed, user will need to manually connect:', error);
+    }
+  }
+
+  static isCompatibleDevice(device: USBDevice): boolean {
+    // Known SecureGen vendor IDs and product IDs
+    const compatibleDevices = [
+      { vendorId: 0x2109, name: 'SecureGen' }, // SecureGen Hamster
+      { vendorId: 0x1162, name: 'SecureGen' }, // Alternative SecureGen ID
+      { vendorId: 0x27c6, name: 'Goodix' },
+      { vendorId: 0x138a, name: 'Validity Sensors' },
+      { vendorId: 0x06cb, name: 'Synaptics' },
+      { vendorId: 0x147e, name: 'Upek' },
+      { vendorId: 0x0483, name: 'STMicroelectronics' },
+      { vendorId: 0x1c7a, name: 'LighTuning' },
+    ];
+
+    return compatibleDevices.some(compatible => compatible.vendorId === device.vendorId);
+  }
+
   static async requestDeviceAccess(): Promise<void> {
     try {
       if (!navigator.usb) {
         throw new Error('WebUSB not supported');
       }
 
-      // Common vendor IDs for fingerprint devices
+      // Enhanced filters including SecureGen devices
       const filters = [
+        { vendorId: 0x2109 }, // SecureGen Hamster
+        { vendorId: 0x1162 }, // Alternative SecureGen ID
         { vendorId: 0x27c6 }, // Goodix
         { vendorId: 0x138a }, // Validity Sensors
         { vendorId: 0x06cb }, // Synaptics
@@ -62,17 +107,21 @@ export class BiometricService {
         { vendorId: 0x1c7a }, // LighTuning
       ];
 
+      console.log('🔍 Requesting access to biometric devices...');
       const device = await navigator.usb.requestDevice({ filters });
       
       if (device) {
-        console.log('📱 USB biometric device detected:', device.productName || 'Unknown Device');
+        const deviceName = device.productName || `SecureGen Device (${device.vendorId}:${device.productId})`;
+        console.log('📱 USB biometric device detected:', deviceName);
         await this.addDevice(device);
       }
     } catch (error: any) {
       if (error.name === 'NotFoundError') {
-        console.log('No biometric device selected by user');
+        console.log('❌ No compatible biometric device found. Please ensure your SecureGen Hamster is connected.');
+        throw new Error('No compatible device found. Please ensure your SecureGen Hamster is properly connected and try again.');
       } else {
         console.error('Error requesting device access:', error);
+        throw error;
       }
     }
   }
@@ -81,15 +130,23 @@ export class BiometricService {
     try {
       await usbDevice.open();
       
+      const deviceName = usbDevice.productName || 
+        (usbDevice.vendorId === 0x2109 || usbDevice.vendorId === 0x1162 
+          ? 'SecureGen Hamster' 
+          : `Device ${usbDevice.vendorId}:${usbDevice.productId}`);
+      
       const device: BiometricDevice = {
         id: `usb-${usbDevice.vendorId}-${usbDevice.productId}`,
-        name: usbDevice.productName || `Device ${usbDevice.vendorId}:${usbDevice.productId}`,
+        name: deviceName,
         type: 'fingerprint',
         connected: true
       };
 
+      // Remove existing device with same ID
+      this.devices = this.devices.filter(d => d.id !== device.id);
       this.devices.push(device);
-      console.log('✅ Biometric device added:', device.name);
+      
+      console.log('✅ Biometric device connected:', device.name);
       
       // Start listening for fingerprint data
       await this.listenToDevice(usbDevice, device);
@@ -197,8 +254,10 @@ export class BiometricService {
     if (!navigator.usb) return;
 
     navigator.usb.addEventListener('connect', async (event) => {
-      console.log('🔌 USB device connected:', event.device.productName);
-      await this.addDevice(event.device);
+      if (this.isCompatibleDevice(event.device)) {
+        console.log('🔌 Compatible USB device connected:', event.device.productName);
+        await this.addDevice(event.device);
+      }
     });
 
     navigator.usb.addEventListener('disconnect', (event) => {
