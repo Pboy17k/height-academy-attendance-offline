@@ -34,10 +34,23 @@ export function HomeAttendance() {
   } = useAttendance();
 
   useEffect(() => {
-    // Check if biometric device is connected
-    setBiometricConnected(BiometricService.isDeviceConnected());
+    const initializeBiometric = async () => {
+      try {
+        await BiometricService.initialize();
+        await FingerprintMatcher.initialize();
+        setBiometricConnected(BiometricService.isDeviceConnected());
+        
+        if (BiometricService.isDeviceConnected()) {
+          console.log('✅ Biometric system ready for real-time scanning');
+        }
+      } catch (error) {
+        console.error('Failed to initialize biometric system:', error);
+      }
+    };
 
-    // Listen for fingerprint scans
+    initializeBiometric();
+
+    // Listen for real fingerprint scans only
     const handleFingerprintDetected = async (reading: any) => {
       if (isScanning) return; // Prevent multiple simultaneous scans
       
@@ -46,7 +59,7 @@ export function HomeAttendance() {
       setDeviceError(null);
       
       try {
-        console.log('👆 Processing fingerprint scan...');
+        console.log('👆 Processing real fingerprint scan...');
         
         // Match fingerprint to staff member
         const matchedStaff = await FingerprintMatcher.matchFingerprint(reading.template);
@@ -68,6 +81,11 @@ export function HomeAttendance() {
             setLastAttendance(newRecord);
             setScanStatus('success');
             
+            toast({
+              title: "Attendance Recorded!",
+              description: `${matchedStaff.fullName} has been ${nextType === 'check-in' ? 'checked in' : 'checked out'} successfully`,
+            });
+            
             // Clear display after 5 seconds
             setTimeout(() => {
               setCurrentStaff(null);
@@ -79,6 +97,12 @@ export function HomeAttendance() {
           setScanStatus('error');
           console.log('❌ Fingerprint not recognized');
           
+          toast({
+            title: "Fingerprint Not Recognized",
+            description: "Please try again or contact administrator",
+            variant: "destructive",
+          });
+          
           // Reset status after 3 seconds
           setTimeout(() => {
             setScanStatus('waiting');
@@ -87,8 +111,10 @@ export function HomeAttendance() {
       } catch (error) {
         console.error('❌ Fingerprint processing failed:', error);
         setScanStatus('error');
+        setDeviceError('Failed to process fingerprint');
         setTimeout(() => {
           setScanStatus('waiting');
+          setDeviceError(null);
         }, 3000);
       } finally {
         setIsScanning(false);
@@ -100,7 +126,7 @@ export function HomeAttendance() {
     return () => {
       BiometricService.removeListener(handleFingerprintDetected);
     };
-  }, [isScanning, getLatestAttendanceForStaff, getNextAttendanceType, recordAttendance]);
+  }, [isScanning, getLatestAttendanceForStaff, getNextAttendanceType, recordAttendance, toast]);
 
   const requestBiometricAccess = async () => {
     try {
@@ -111,7 +137,7 @@ export function HomeAttendance() {
       if (BiometricService.isDeviceConnected()) {
         toast({
           title: "Device Connected!",
-          description: "SecureGen Hamster is now ready for fingerprint scanning",
+          description: "SecureGen Hamster is now ready for real-time fingerprint scanning",
         });
       }
     } catch (error: any) {
@@ -122,61 +148,6 @@ export function HomeAttendance() {
         variant: "destructive",
       });
     }
-  };
-
-  const simulateFingerprintScan = async () => {
-    if (isScanning) return;
-    
-    setIsScanning(true);
-    setScanStatus('scanning');
-    
-    // Use biometric device if available, otherwise simulate
-    const reading = biometricConnected 
-      ? await new Promise(resolve => {
-          // Real device reading will be handled by the listener
-          setTimeout(() => resolve(null), 2000);
-        })
-      : BiometricService.simulateFingerprintScan();
-    
-    if (!biometricConnected && reading) {
-      // Handle simulated reading
-      try {
-        if (staff.length > 0) {
-          const randomStaff = staff[Math.floor(Math.random() * staff.length)];
-          const lastRecord = await getLatestAttendanceForStaff(randomStaff.id);
-          
-          const nextType = getNextAttendanceType(lastRecord);
-          
-          const newRecord = await recordAttendance({
-            staffId: randomStaff.id,
-            staffName: randomStaff.fullName,
-            type: nextType,
-            timestamp: new Date(),
-            method: 'fingerprint'
-          });
-          
-          if (newRecord) {
-            setCurrentStaff(randomStaff);
-            setLastAttendance(newRecord);
-            setScanStatus('success');
-            
-            setTimeout(() => {
-              setCurrentStaff(null);
-              setLastAttendance(null);
-              setScanStatus('waiting');
-            }, 5000);
-          }
-        }
-      } catch (error) {
-        console.error('Simulation failed:', error);
-        setScanStatus('error');
-        setTimeout(() => {
-          setScanStatus('waiting');
-        }, 3000);
-      }
-    }
-    
-    setIsScanning(false);
   };
 
   const getScannerStatus = () => {
@@ -204,10 +175,12 @@ export function HomeAttendance() {
         };
       default:
         return {
-          text: biometricConnected ? 'Place Finger on Scanner' : 'Touch to Scan',
-          subtext: biometricConnected ? 'SecureGen Hamster ready' : 'Simulation mode - place finger to check in/out',
-          color: 'text-blue-500 dark:text-blue-400',
-          bgColor: 'border-gray-300 dark:border-gray-600 hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20'
+          text: biometricConnected ? 'Place Finger on Scanner' : 'Connect SecureGen Device',
+          subtext: biometricConnected ? 'SecureGen Hamster ready for real-time scanning' : 'Please connect your biometric device',
+          color: biometricConnected ? 'text-blue-500 dark:text-blue-400' : 'text-orange-500 dark:text-orange-400',
+          bgColor: biometricConnected 
+            ? 'border-blue-300 dark:border-blue-600 hover:border-blue-400' 
+            : 'border-orange-300 dark:border-orange-600'
         };
     }
   };
@@ -250,11 +223,11 @@ export function HomeAttendance() {
             Al'asr Comprehensive Academy
           </h1>
           <p className="text-sm text-gray-600 dark:text-gray-300">
-            Attendance Management System
+            Real-Time Attendance Management System
           </p>
           {biometricConnected ? (
             <Badge variant="outline" className="text-xs mt-1 border-green-500 text-green-600">
-              🔗 SecureGen Hamster Connected
+              🔗 SecureGen Hamster Connected (Real-Time)
             </Badge>
           ) : deviceError ? (
             <Badge variant="outline" className="text-xs mt-1 border-red-500 text-red-600">
@@ -263,7 +236,7 @@ export function HomeAttendance() {
             </Badge>
           ) : (
             <Badge variant="outline" className="text-xs mt-1 border-orange-500 text-orange-600">
-              📱 Connect SecureGen Device
+              📱 Connect SecureGen Device Required
             </Badge>
           )}
         </div>
@@ -322,8 +295,9 @@ export function HomeAttendance() {
               ) : (
                 <div className="space-y-6">
                   <div
-                    className={`mx-auto w-48 h-48 rounded-full border-8 flex items-center justify-center cursor-pointer transition-all duration-300 ${status.bgColor}`}
-                    onClick={simulateFingerprintScan}
+                    className={`mx-auto w-48 h-48 rounded-full border-8 flex items-center justify-center transition-all duration-300 ${status.bgColor} ${
+                      biometricConnected ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'
+                    }`}
                   >
                     <Fingerprint 
                       className={`h-20 w-20 ${status.color} transition-all duration-300 ${
@@ -338,7 +312,7 @@ export function HomeAttendance() {
                     <p className="text-gray-500 dark:text-gray-400 text-lg">
                       {status.subtext}
                     </p>
-                    {scanStatus === 'waiting' && (
+                    {scanStatus === 'waiting' && biometricConnected && (
                       <div className="mt-4 flex items-center justify-center space-x-2 text-blue-500 dark:text-blue-400">
                         <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
                         <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>

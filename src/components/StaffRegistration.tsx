@@ -1,12 +1,14 @@
-
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useStaff } from '@/hooks/useStaff';
-import { Camera, Fingerprint, User, Save } from 'lucide-react';
+import { Camera, Fingerprint, User, Save, CheckCircle } from 'lucide-react';
+import { BiometricService } from '@/services/biometricService';
+import { FingerprintMatcher } from '@/services/fingerprintMatcher';
+import { useToast } from '@/hooks/use-toast';
 
 const departments = [
   'Administration',
@@ -44,11 +46,29 @@ export function StaffRegistration() {
   const [photo, setPhoto] = useState<string>('');
   const [isCapturing, setIsCapturing] = useState(false);
   const [fingerprintEnrolled, setFingerprintEnrolled] = useState(false);
+  const [fingerprintTemplate, setFingerprintTemplate] = useState<string>('');
+  const [isEnrolling, setIsEnrolling] = useState(false);
+  const [biometricConnected, setBiometricConnected] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   
   const { createStaff } = useStaff();
   const [isSaving, setIsSaving] = useState(false);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    const initializeBiometric = async () => {
+      try {
+        await BiometricService.initialize();
+        await FingerprintMatcher.initialize();
+        setBiometricConnected(BiometricService.isDeviceConnected());
+      } catch (error) {
+        console.error('Failed to initialize biometric system:', error);
+      }
+    };
+
+    initializeBiometric();
+  }, []);
 
   const generateStaffId = () => {
     const prefix = 'STF';
@@ -72,6 +92,11 @@ export function StaffRegistration() {
     } catch (error) {
       console.error('Camera access failed:', error);
       setIsCapturing(false);
+      toast({
+        title: "Camera Error",
+        description: "Failed to access camera. Please check permissions.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -105,22 +130,89 @@ export function StaffRegistration() {
   };
 
   const enrollFingerprint = async () => {
-    // Simulate fingerprint enrollment
-    setTimeout(() => {
-      setFingerprintEnrolled(true);
-    }, 2000);
+    if (!biometricConnected) {
+      toast({
+        title: "Device Not Connected",
+        description: "Please connect your SecureGen Hamster device first.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsEnrolling(true);
+    
+    try {
+      toast({
+        title: "Place Your Finger",
+        description: "Place your finger on the SecureGen Hamster scanner...",
+      });
+
+      // Listen for fingerprint reading
+      const handleFingerprintReading = (reading: any) => {
+        if (reading.quality > 70) {
+          setFingerprintTemplate(reading.template);
+          setFingerprintEnrolled(true);
+          setIsEnrolling(false);
+          
+          toast({
+            title: "Fingerprint Enrolled!",
+            description: "Your fingerprint has been successfully captured.",
+          });
+          
+          // Remove listener after successful enrollment
+          BiometricService.removeListener(handleFingerprintReading);
+        } else {
+          toast({
+            title: "Low Quality Scan",
+            description: "Please place your finger firmly on the scanner and try again.",
+            variant: "destructive",
+          });
+        }
+      };
+
+      BiometricService.onFingerprintDetected(handleFingerprintReading);
+
+      // Timeout after 30 seconds
+      setTimeout(() => {
+        if (isEnrolling) {
+          setIsEnrolling(false);
+          BiometricService.removeListener(handleFingerprintReading);
+          toast({
+            title: "Enrollment Timeout",
+            description: "Please try again to enroll your fingerprint.",
+            variant: "destructive",
+          });
+        }
+      }, 30000);
+
+    } catch (error) {
+      console.error('Fingerprint enrollment failed:', error);
+      setIsEnrolling(false);
+      toast({
+        title: "Enrollment Failed",
+        description: "Failed to enroll fingerprint. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const validateForm = () => {
     const required = ['fullName', 'email', 'phone', 'staffId', 'department', 'role'];
     const missing = required.filter(field => !formData[field as keyof typeof formData]);
-    return missing.length === 0 && photo && fingerprintEnrolled;
+    return missing.length === 0 && photo && fingerprintEnrolled && fingerprintTemplate;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!validateForm()) return;
+    if (!validateForm()) {
+      toast({
+        title: "Incomplete Form",
+        description: "Please fill all fields, capture photo, and enroll fingerprint.",
+        variant: "destructive",
+      });
+      return;
+    }
     
     setIsSaving(true);
     
@@ -128,7 +220,7 @@ export function StaffRegistration() {
       const success = await createStaff({
         ...formData,
         photo,
-        fingerprintId: crypto.randomUUID(),
+        fingerprintId: fingerprintTemplate,
         isActive: true
       });
       
@@ -144,9 +236,20 @@ export function StaffRegistration() {
         });
         setPhoto('');
         setFingerprintEnrolled(false);
+        setFingerprintTemplate('');
+        
+        toast({
+          title: "Registration Successful!",
+          description: "Staff member has been registered with biometric data.",
+        });
       }
     } catch (error) {
       console.error('Registration failed:', error);
+      toast({
+        title: "Registration Failed",
+        description: "Failed to register staff member. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setIsSaving(false);
     }
@@ -156,7 +259,7 @@ export function StaffRegistration() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Staff Registration</h1>
-        <p className="text-gray-500 dark:text-gray-400">Register new staff members with photo and fingerprint</p>
+        <p className="text-gray-500 dark:text-gray-400">Register new staff members with real-time biometric enrollment</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -309,28 +412,64 @@ export function StaffRegistration() {
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
                   <Fingerprint className="h-5 w-5" />
-                  <span>Fingerprint Enrollment</span>
+                  <span>Real-Time Fingerprint Enrollment</span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="text-center space-y-4">
-                <div className={`w-24 h-24 mx-auto rounded-full border-4 flex items-center justify-center ${
-                  fingerprintEnrolled ? 'border-green-500 bg-green-50 dark:bg-green-900/20' : 'border-gray-300 dark:border-gray-600'
+                <div className={`w-24 h-24 mx-auto rounded-full border-4 flex items-center justify-center transition-all duration-300 ${
+                  fingerprintEnrolled 
+                    ? 'border-green-500 bg-green-50 dark:bg-green-900/20' 
+                    : isEnrolling
+                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 animate-pulse'
+                    : biometricConnected
+                    ? 'border-gray-300 dark:border-gray-600 hover:border-blue-400'
+                    : 'border-red-300 dark:border-red-600'
                 }`}>
-                  <Fingerprint className={`h-8 w-8 ${
-                    fingerprintEnrolled ? 'text-green-600' : 'text-gray-400'
-                  }`} />
+                  {fingerprintEnrolled ? (
+                    <CheckCircle className="h-8 w-8 text-green-600" />
+                  ) : (
+                    <Fingerprint className={`h-8 w-8 ${
+                      isEnrolling ? 'text-blue-600' : biometricConnected ? 'text-gray-400' : 'text-red-400'
+                    }`} />
+                  )}
                 </div>
                 
                 {fingerprintEnrolled ? (
                   <div className="text-green-600 dark:text-green-400">
-                    <p className="font-medium">✓ Fingerprint Enrolled</p>
-                    <p className="text-sm">Ready for attendance</p>
+                    <p className="font-medium">✓ Fingerprint Enrolled Successfully</p>
+                    <p className="text-sm">Ready for attendance system</p>
                   </div>
                 ) : (
-                  <Button type="button" onClick={enrollFingerprint}>
-                    <Fingerprint className="h-4 w-4 mr-2" />
-                    Enroll Fingerprint
-                  </Button>
+                  <div className="space-y-2">
+                    <Button 
+                      type="button" 
+                      onClick={enrollFingerprint}
+                      disabled={!biometricConnected || isEnrolling}
+                      className={isEnrolling ? 'animate-pulse' : ''}
+                    >
+                      {isEnrolling ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Scanning...
+                        </>
+                      ) : (
+                        <>
+                          <Fingerprint className="h-4 w-4 mr-2" />
+                          {biometricConnected ? 'Enroll Fingerprint' : 'Connect Device First'}
+                        </>
+                      )}
+                    </Button>
+                    {!biometricConnected && (
+                      <p className="text-sm text-red-600 dark:text-red-400">
+                        SecureGen Hamster device not connected
+                      </p>
+                    )}
+                    {isEnrolling && (
+                      <p className="text-sm text-blue-600 dark:text-blue-400">
+                        Place your finger on the scanner and hold still...
+                      </p>
+                    )}
+                  </div>
                 )}
               </CardContent>
             </Card>
