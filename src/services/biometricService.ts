@@ -34,9 +34,6 @@ export class BiometricService {
         return false;
       }
 
-      // Request USB device access
-      await this.requestDeviceAccess();
-      
       // Start device monitoring
       await this.startDeviceMonitoring();
       
@@ -51,6 +48,10 @@ export class BiometricService {
 
   static async requestDeviceAccess(): Promise<void> {
     try {
+      if (!navigator.usb) {
+        throw new Error('WebUSB not supported');
+      }
+
       // Common vendor IDs for fingerprint devices
       const filters = [
         { vendorId: 0x27c6 }, // Goodix
@@ -67,7 +68,7 @@ export class BiometricService {
         console.log('📱 USB biometric device detected:', device.productName || 'Unknown Device');
         await this.addDevice(device);
       }
-    } catch (error) {
+    } catch (error: any) {
       if (error.name === 'NotFoundError') {
         console.log('No biometric device selected by user');
       } else {
@@ -140,7 +141,7 @@ export class BiometricService {
         // Continue reading
         setTimeout(readLoop, 100); // Read every 100ms
         
-      } catch (error) {
+      } catch (error: any) {
         if (error.name !== 'NetworkError') {
           console.error('Error reading from biometric device:', error);
         }
