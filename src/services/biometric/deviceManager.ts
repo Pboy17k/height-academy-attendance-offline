@@ -1,8 +1,10 @@
+
 import { BiometricDevice, COMPATIBLE_DEVICES } from './types';
 
 export class DeviceManager {
   private static devices: BiometricDevice[] = [];
   private static connectedUSBDevices: USBDevice[] = [];
+  private static isAutoConnecting = false;
 
   static isCompatibleDevice(device: USBDevice): boolean {
     const isCompatible = COMPATIBLE_DEVICES.some(compatible => compatible.vendorId === device.vendorId);
@@ -77,25 +79,52 @@ export class DeviceManager {
     }
   }
 
-  static async autoConnectDevices(): Promise<void> {
+  static async scanAndAutoConnect(): Promise<boolean> {
+    if (this.isAutoConnecting) return false;
+    
     try {
-      if (!navigator.usb) return;
+      this.isAutoConnecting = true;
+      console.log('🔍 Scanning for SecureGen Hamster devices...');
       
-      // Get previously authorized devices
-      const devices = await navigator.usb.getDevices();
-      console.log('🔍 Found previously authorized USB devices:', devices.length);
+      if (!navigator.usb) {
+        console.warn('WebUSB not supported in this browser');
+        return false;
+      }
       
-      for (const device of devices) {
+      // Get all previously authorized devices
+      const authorizedDevices = await navigator.usb.getDevices();
+      console.log(`📱 Found ${authorizedDevices.length} previously authorized USB devices`);
+      
+      let connectedDevices = 0;
+      
+      for (const device of authorizedDevices) {
         if (this.isCompatibleDevice(device)) {
-          console.log('🔗 Auto-connecting to:', device.productName || 'SecureGen Device');
-          await this.addDevice(device);
+          console.log('🔗 Auto-connecting to SecureGen device:', device.productName || 'SecureGen Hamster');
+          const addedDevice = await this.addDevice(device);
+          if (addedDevice) {
+            connectedDevices++;
+          }
         }
       }
       
-      console.log(`✅ Auto-connection complete. Connected devices: ${this.devices.length}`);
+      if (connectedDevices > 0) {
+        console.log(`✅ Successfully auto-connected to ${connectedDevices} SecureGen device(s)`);
+        return true;
+      } else {
+        console.log('⚠️ No SecureGen Hamster devices found for auto-connection');
+        return false;
+      }
+      
     } catch (error) {
-      console.log('Auto-connect failed, manual connection will be required:', error);
+      console.error('❌ Auto-connection scan failed:', error);
+      return false;
+    } finally {
+      this.isAutoConnecting = false;
     }
+  }
+
+  static async autoConnectDevices(): Promise<void> {
+    await this.scanAndAutoConnect();
   }
 
   static removeDevice(usbDevice: USBDevice): void {
@@ -122,5 +151,11 @@ export class DeviceManager {
 
   static getConnectedUSBDevices(): USBDevice[] {
     return this.connectedUSBDevices;
+  }
+
+  static getConnectionStatus(): 'connected' | 'scanning' | 'disconnected' {
+    if (this.isDeviceConnected()) return 'connected';
+    if (this.isAutoConnecting) return 'scanning';
+    return 'disconnected';
   }
 }

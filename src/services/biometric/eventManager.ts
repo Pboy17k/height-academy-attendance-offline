@@ -4,6 +4,7 @@ import { BiometricReading } from './types';
 export class EventManager {
   private static listeners: ((reading: BiometricReading) => void)[] = [];
   private static connectionListeners: ((connected: boolean) => void)[] = [];
+  private static deviceTestListeners: ((status: 'testing' | 'ready' | 'error') => void)[] = [];
 
   static onFingerprintDetected(callback: (reading: BiometricReading) => void): void {
     this.listeners.push(callback);
@@ -27,6 +28,17 @@ export class EventManager {
     }
   }
 
+  static onDeviceTest(callback: (status: 'testing' | 'ready' | 'error') => void): void {
+    this.deviceTestListeners.push(callback);
+  }
+
+  static removeDeviceTestListener(callback: (status: 'testing' | 'ready' | 'error') => void): void {
+    const index = this.deviceTestListeners.indexOf(callback);
+    if (index > -1) {
+      this.deviceTestListeners.splice(index, 1);
+    }
+  }
+
   static notifyListeners(reading: BiometricReading): void {
     this.listeners.forEach(listener => {
       try {
@@ -43,6 +55,16 @@ export class EventManager {
         listener(connected);
       } catch (error) {
         console.error('Error in connection listener:', error);
+      }
+    });
+  }
+
+  static notifyTestListeners(status: 'testing' | 'ready' | 'error'): void {
+    this.deviceTestListeners.forEach(listener => {
+      try {
+        listener(status);
+      } catch (error) {
+        console.error('Error in device test listener:', error);
       }
     });
   }
