@@ -19,11 +19,40 @@ function createWindow() {
       enableRemoteModule: true,
       webSecurity: false, // Required for USB device access
       allowRunningInsecureContent: true,
-      experimentalFeatures: true
+      experimentalFeatures: true,
+      // Enable USB device access
+      additionalArguments: ['--enable-web-usb', '--enable-experimental-web-platform-features']
     },
     titleBarStyle: 'default',
     show: false, // Don't show until ready
     backgroundColor: '#1a1a1a'
+  });
+
+  // Enable USB device permissions
+  mainWindow.webContents.session.setPermissionRequestHandler((webContents, permission, callback) => {
+    if (permission === 'usb') {
+      // Always grant USB permissions for this app
+      callback(true);
+    } else {
+      callback(false);
+    }
+  });
+
+  // Handle USB device selection
+  mainWindow.webContents.session.on('select-usb-device', (event, details, callback) => {
+    event.preventDefault();
+    // Auto-select the first compatible device
+    const compatibleDevice = details.deviceList.find(device => 
+      device.vendorId === 0x2109 || // SecureGen Hamster
+      device.vendorId === 0x1162 || // Alternative SecureGen
+      device.vendorId === 0x16d1    // Another SecureGen variant
+    );
+    
+    if (compatibleDevice) {
+      callback(compatibleDevice.deviceId);
+    } else {
+      callback('');
+    }
   });
 
   // Load the app
@@ -151,6 +180,15 @@ function createMenu() {
 
 // App event listeners
 app.whenReady().then(() => {
+  // Set app user model ID for Windows
+  if (process.platform === 'win32') {
+    app.setAppUserModelId('com.alasr.academy.attendance');
+  }
+
+  // Enable USB device access
+  app.commandLine.appendSwitch('enable-web-usb');
+  app.commandLine.appendSwitch('enable-experimental-web-platform-features');
+  
   createWindow();
 
   app.on('activate', () => {
