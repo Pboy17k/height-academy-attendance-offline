@@ -1,4 +1,3 @@
-
 import { BiometricDevice, COMPATIBLE_DEVICES } from './types';
 
 export class DeviceManager {
@@ -40,7 +39,7 @@ export class DeviceManager {
     }
   }
 
-  static async addDevice(usbDevice: USBDevice): Promise<void> {
+  static async addDevice(usbDevice: USBDevice): Promise<BiometricDevice | null> {
     try {
       // Check if device is already connected
       const existingDeviceIndex = this.connectedUSBDevices.findIndex(
@@ -74,7 +73,7 @@ export class DeviceManager {
       return device;
     } catch (error) {
       console.error('Failed to add biometric device:', error);
-      throw error;
+      return null;
     }
   }
 

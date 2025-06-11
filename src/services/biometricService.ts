@@ -1,4 +1,3 @@
-
 import { BiometricDevice, BiometricReading } from './biometric/types';
 import { DeviceManager } from './biometric/deviceManager';
 import { DataProcessor } from './biometric/dataProcessor';
@@ -34,8 +33,9 @@ export class BiometricService {
   }
 
   static async requestDeviceAccess(): Promise<void> {
-    const device = await DeviceManager.requestDeviceAccess();
-    if (device) {
+    await DeviceManager.requestDeviceAccess();
+    // Check if any device is now connected and notify
+    if (DeviceManager.isDeviceConnected()) {
       EventManager.notifyConnectionListeners(true);
     }
   }
